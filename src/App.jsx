@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -8,18 +8,18 @@ import {
    BRAND TOKENS — Academia LR
 ══════════════════════════════════════════════════════════════ */
 const B = {
-  bg:        "#0f1a2e",   // fondo principal
-  bgDark:    "#0a1428",   // sidebar / cards profundas
-  bgCard:    "#132038",   // cards normales
-  border:    "#1e3a5f",   // bordes y separadores
-  gold:      "#c9a44a",   // acento principal
-  goldLight: "#e0b86a",   // hover / highlight
+  bg:        "#0f1a2e",
+  bgDark:    "#0a1428",
+  bgCard:    "#132038",
+  border:    "#1e3a5f",
+  gold:      "#c9a44a",
+  goldLight: "#e0b86a",
   goldBg:    "rgba(201,164,74,0.10)",
   goldBorder:"rgba(201,164,74,0.30)",
   text:      "#ffffff",
   textSub:   "#8a9bb5",
   textMuted: "#3d5a7a",
-  ok:        "#c9a44a",   // estado OK → dorado
+  ok:        "#c9a44a",
   okBg:      "rgba(201,164,74,0.10)",
   okBorder:  "rgba(201,164,74,0.35)",
   danger:    "#dc2626",
@@ -40,17 +40,11 @@ function LogoLR({ size = 40, color = B.gold }) {
   const s = size;
   return (
     <svg width={s} height={s} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Outer frame */}
       <rect x="6" y="6" width="88" height="88" rx="4" stroke={color} strokeWidth="5" fill="none"/>
-      {/* Court center line (horizontal) */}
       <line x1="6" y1="72" x2="94" y2="72" stroke={color} strokeWidth="3.5"/>
-      {/* Court center line (vertical top notch) */}
       <line x1="50" y1="6" x2="50" y2="16" stroke={color} strokeWidth="3.5"/>
-      {/* Court center line (vertical bottom notch) */}
       <line x1="50" y1="72" x2="50" y2="94" stroke={color} strokeWidth="3.5"/>
-      {/* L letter */}
       <path d="M14 18 L14 66 L44 66" stroke={color} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-      {/* R letter */}
       <path d="M54 18 L54 66" stroke={color} strokeWidth="8" strokeLinecap="round" fill="none"/>
       <path d="M54 18 L74 18 Q86 18 86 32 Q86 46 74 46 L54 46" stroke={color} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
       <path d="M68 46 L86 66" stroke={color} strokeWidth="8" strokeLinecap="round" fill="none"/>
@@ -114,21 +108,21 @@ const SCHEDULE_SLOTS = [
 ];
 
 const INITIAL_STUDENTS = [
-  { id:1,  pin:"1234", nombre:"Vale Marengo",   iniciales:"VM", estado:"OK",      abonadas:39, realizadas:33, email:"valeriamarengo@hotmail.com",     tel:"981130838",    plan:"12 Clases", pagos:{Enero:740000,Febrero:650000,Marzo:650000,Abril:650000},   asistencia:[{f:"07/04",m:"P"},{f:"09/04",m:"P"},{f:"14/04",m:"P"},{f:"16/04",m:"P"},{f:"22/04",m:"P"},{f:"24/04",m:"P"},{f:"28/04",m:"P"},{f:"30/04",m:"P"}] },
-  { id:2,  pin:"0002", nombre:"Euge",            iniciales:"EU", estado:"OK",      abonadas:11, realizadas:8,  email:"",                               tel:"981419378",    plan:"8 Clases",  pagos:{Enero:262000,Febrero:350000,Marzo:350000},                asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:"P"},{f:"24/04",m:""},{f:"28/04",m:"P"},{f:"30/04",m:""}] },
-  { id:3,  pin:"0003", nombre:"Arnaldo",         iniciales:"AR", estado:"OK",      abonadas:11, realizadas:8,  email:"",                               tel:"981419378",    plan:"8 Clases",  pagos:{Enero:263000,Febrero:350000,Marzo:350000},                asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:"P"},{f:"24/04",m:""},{f:"28/04",m:"P"},{f:"30/04",m:""}] },
-  { id:4,  pin:"4444", nombre:"Diego Sanchez",   iniciales:"DS", estado:"VENCIDO", abonadas:12, realizadas:12, email:"D.sanchezareco@gmail.com",       tel:"991703651",    plan:"12 Clases", pagos:{Febrero:90000,Marzo:220000,Abril:700000},                asistencia:[{f:"07/04",m:"P"},{f:"09/04",m:"P"},{f:"14/04",m:"P"},{f:"16/04",m:"P"},{f:"22/04",m:"P"},{f:"24/04",m:"P"},{f:"28/04",m:"P"},{f:"30/04",m:"P"}] },
-  { id:5,  pin:"0000", nombre:"Lucho Rolando",   iniciales:"LR", estado:"OK",      abonadas:6,  realizadas:2,  email:"luisangelrolando2024@gmail.com", tel:"595971515309", plan:"4 Clases",  pagos:{},                                                       asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:"I"},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:"X"},{f:"28/04",m:""},{f:"30/04",m:""}] },
-  { id:7,  pin:"7777", nombre:"Miguel Zacarias", iniciales:"MZ", estado:"OK",      abonadas:32, realizadas:25, email:"mzacarias@grupomipac.com",       tel:"981693213",    plan:"8 Clases",  pagos:{Febrero:550000,Marzo:840000,Abril:840000},               asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:""},{f:"28/04",m:"P"},{f:"30/04",m:"P"}] },
-  { id:8,  pin:"0008", nombre:"Lucy",            iniciales:"LU", estado:"OK",      abonadas:24, realizadas:20, email:"lucymedinavazquez@gmail.com",    tel:"981509440",    plan:"8 Clases",  pagos:{Febrero:650000,Marzo:700000,Abril:700000},               asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:"P"},{f:"24/04",m:"P"},{f:"28/04",m:"P"},{f:"30/04",m:"I"}] },
-  { id:10, pin:"1010", nombre:"Rosse Rivelli",   iniciales:"RR", estado:"OK",      abonadas:36, realizadas:30, email:"",                               tel:"",             plan:"12 Clases", pagos:{Enero:500000,Febrero:650000,Marzo:650000,Abril:650000},   asistencia:[{f:"07/04",m:"P"},{f:"09/04",m:"P"},{f:"14/04",m:"P"},{f:"16/04",m:"P"},{f:"22/04",m:""},{f:"24/04",m:"P"},{f:"28/04",m:"P"},{f:"30/04",m:"I"}] },
-  { id:17, pin:"1717", nombre:"Martin Cueto",    iniciales:"MC", estado:"OK",      abonadas:21, realizadas:17, email:"",                               tel:"",             plan:"8 Clases",  pagos:{Enero:380000,Febrero:650000,Marzo:650000},               asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:""},{f:"28/04",m:""},{f:"30/04",m:""}] },
-  { id:18, pin:"1818", nombre:"Guada Rolon",     iniciales:"GR", estado:"OK",      abonadas:19, realizadas:15, email:"",                               tel:"",             plan:"8 Clases",  pagos:{Enero:380000,Febrero:380000,Marzo:380000,Abril:380000},  asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:""},{f:"28/04",m:""},{f:"30/04",m:"P"}] },
-  { id:27, pin:"2727", nombre:"Franco Verano",   iniciales:"FV", estado:"OK",      abonadas:30, realizadas:24, email:"",                               tel:"",             plan:"12 Clases", pagos:{Enero:650000,Febrero:650000,Marzo:650000,Abril:650000},  asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:"P"},{f:"22/04",m:""},{f:"24/04",m:"P"},{f:"28/04",m:""},{f:"30/04",m:"P"}] },
-  { id:30, pin:"3030", nombre:"Arturo Grau",     iniciales:"AG", estado:"OK",      abonadas:51, realizadas:44, email:"",                               tel:"",             plan:"12 Clases", pagos:{Enero:950000,Febrero:950000,Marzo:950000,Abril:950000},  asistencia:[{f:"07/04",m:"P"},{f:"09/04",m:"P"},{f:"14/04",m:"I"},{f:"16/04",m:"P"},{f:"22/04",m:""},{f:"24/04",m:"P"},{f:"28/04",m:"I"},{f:"30/04",m:"X"}] },
-  { id:45, pin:"4545", nombre:"Mauro Coche",     iniciales:"MC", estado:"OK",      abonadas:40, realizadas:37, email:"",                               tel:"",             plan:"8 Clases",  pagos:{Enero:650000,Febrero:650000,Marzo:650000,Abril:650000},  asistencia:[{f:"07/04",m:"P"},{f:"09/04",m:"P"},{f:"14/04",m:"P"},{f:"16/04",m:"P"},{f:"22/04",m:""},{f:"24/04",m:"P"},{f:"28/04",m:"P"},{f:"30/04",m:"P"}] },
-  { id:47, pin:"4747", nombre:"Marcos Ibañez",   iniciales:"MI", estado:"OK",      abonadas:14, realizadas:13, email:"",                               tel:"",             plan:"8 Clases",  pagos:{Marzo:650000,Abril:650000},                              asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:"P"},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:""},{f:"28/04",m:"P"},{f:"30/04",m:""}] },
-  { id:52, pin:"5252", nombre:"Yanina",          iniciales:"YA", estado:"OK",      abonadas:13, realizadas:10, email:"",                               tel:"",             plan:"8 Clases",  pagos:{Marzo:650000,Abril:650000},                              asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:""},{f:"28/04",m:""},{f:"30/04",m:""}] },
+  { id:1,  pin:"1234", nombre:"Vale Marengo",   iniciales:"VM", estado:"OK",      abonadas:39, realizadas:33, email:"valeriamarengo@hotmail.com",     tel:"981130838",    plan:"12 Clases", pagos:{Enero:740000,Febrero:650000,Marzo:650000,Abril:650000},   asistencia:[{f:"07/04",m:"P"},{f:"09/04",m:"P"},{f:"14/04",m:"P"},{f:"16/04",m:"P"},{f:"22/04",m:"P"},{f:"24/04",m:"P"},{f:"28/04",m:"P"},{f:"30/04",m:"P"}], foto:null },
+  { id:2,  pin:"0002", nombre:"Euge",            iniciales:"EU", estado:"OK",      abonadas:11, realizadas:8,  email:"",                               tel:"981419378",    plan:"8 Clases",  pagos:{Enero:262000,Febrero:350000,Marzo:350000},                asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:"P"},{f:"24/04",m:""},{f:"28/04",m:"P"},{f:"30/04",m:""}], foto:null },
+  { id:3,  pin:"0003", nombre:"Arnaldo",         iniciales:"AR", estado:"OK",      abonadas:11, realizadas:8,  email:"",                               tel:"981419378",    plan:"8 Clases",  pagos:{Enero:263000,Febrero:350000,Marzo:350000},                asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:"P"},{f:"24/04",m:""},{f:"28/04",m:"P"},{f:"30/04",m:""}], foto:null },
+  { id:4,  pin:"4444", nombre:"Diego Sanchez",   iniciales:"DS", estado:"VENCIDO", abonadas:12, realizadas:12, email:"D.sanchezareco@gmail.com",       tel:"991703651",    plan:"12 Clases", pagos:{Febrero:90000,Marzo:220000,Abril:700000},                asistencia:[{f:"07/04",m:"P"},{f:"09/04",m:"P"},{f:"14/04",m:"P"},{f:"16/04",m:"P"},{f:"22/04",m:"P"},{f:"24/04",m:"P"},{f:"28/04",m:"P"},{f:"30/04",m:"P"}], foto:null },
+  { id:5,  pin:"0000", nombre:"Lucho Rolando",   iniciales:"LR", estado:"OK",      abonadas:6,  realizadas:2,  email:"luisangelrolando2024@gmail.com", tel:"595971515309", plan:"4 Clases",  pagos:{},                                                       asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:"I"},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:"X"},{f:"28/04",m:""},{f:"30/04",m:""}], foto:null },
+  { id:7,  pin:"7777", nombre:"Miguel Zacarias", iniciales:"MZ", estado:"OK",      abonadas:32, realizadas:25, email:"mzacarias@grupomipac.com",       tel:"981693213",    plan:"8 Clases",  pagos:{Febrero:550000,Marzo:840000,Abril:840000},               asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:""},{f:"28/04",m:"P"},{f:"30/04",m:"P"}], foto:null },
+  { id:8,  pin:"0008", nombre:"Lucy",            iniciales:"LU", estado:"OK",      abonadas:24, realizadas:20, email:"lucymedinavazquez@gmail.com",    tel:"981509440",    plan:"8 Clases",  pagos:{Febrero:650000,Marzo:700000,Abril:700000},               asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:"P"},{f:"24/04",m:"P"},{f:"28/04",m:"P"},{f:"30/04",m:"I"}], foto:null },
+  { id:10, pin:"1010", nombre:"Rosse Rivelli",   iniciales:"RR", estado:"OK",      abonadas:36, realizadas:30, email:"",                               tel:"",             plan:"12 Clases", pagos:{Enero:500000,Febrero:650000,Marzo:650000,Abril:650000},   asistencia:[{f:"07/04",m:"P"},{f:"09/04",m:"P"},{f:"14/04",m:"P"},{f:"16/04",m:"P"},{f:"22/04",m:""},{f:"24/04",m:"P"},{f:"28/04",m:"P"},{f:"30/04",m:"I"}], foto:null },
+  { id:17, pin:"1717", nombre:"Martin Cueto",    iniciales:"MC", estado:"OK",      abonadas:21, realizadas:17, email:"",                               tel:"",             plan:"8 Clases",  pagos:{Enero:380000,Febrero:650000,Marzo:650000},               asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:""},{f:"28/04",m:""},{f:"30/04",m:""}], foto:null },
+  { id:18, pin:"1818", nombre:"Guada Rolon",     iniciales:"GR", estado:"OK",      abonadas:19, realizadas:15, email:"",                               tel:"",             plan:"8 Clases",  pagos:{Enero:380000,Febrero:380000,Marzo:380000,Abril:380000},  asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:""},{f:"28/04",m:""},{f:"30/04",m:"P"}], foto:null },
+  { id:27, pin:"2727", nombre:"Franco Verano",   iniciales:"FV", estado:"OK",      abonadas:30, realizadas:24, email:"",                               tel:"",             plan:"12 Clases", pagos:{Enero:650000,Febrero:650000,Marzo:650000,Abril:650000},  asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:"P"},{f:"22/04",m:""},{f:"24/04",m:"P"},{f:"28/04",m:""},{f:"30/04",m:"P"}], foto:null },
+  { id:30, pin:"3030", nombre:"Arturo Grau",     iniciales:"AG", estado:"OK",      abonadas:51, realizadas:44, email:"",                               tel:"",             plan:"12 Clases", pagos:{Enero:950000,Febrero:950000,Marzo:950000,Abril:950000},  asistencia:[{f:"07/04",m:"P"},{f:"09/04",m:"P"},{f:"14/04",m:"I"},{f:"16/04",m:"P"},{f:"22/04",m:""},{f:"24/04",m:"P"},{f:"28/04",m:"I"},{f:"30/04",m:"X"}], foto:null },
+  { id:45, pin:"4545", nombre:"Mauro Coche",     iniciales:"MC", estado:"OK",      abonadas:40, realizadas:37, email:"",                               tel:"",             plan:"8 Clases",  pagos:{Enero:650000,Febrero:650000,Marzo:650000,Abril:650000},  asistencia:[{f:"07/04",m:"P"},{f:"09/04",m:"P"},{f:"14/04",m:"P"},{f:"16/04",m:"P"},{f:"22/04",m:""},{f:"24/04",m:"P"},{f:"28/04",m:"P"},{f:"30/04",m:"P"}], foto:null },
+  { id:47, pin:"4747", nombre:"Marcos Ibañez",   iniciales:"MI", estado:"OK",      abonadas:14, realizadas:13, email:"",                               tel:"",             plan:"8 Clases",  pagos:{Marzo:650000,Abril:650000},                              asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:"P"},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:""},{f:"28/04",m:"P"},{f:"30/04",m:""}], foto:null },
+  { id:52, pin:"5252", nombre:"Yanina",          iniciales:"YA", estado:"OK",      abonadas:13, realizadas:10, email:"",                               tel:"",             plan:"8 Clases",  pagos:{Marzo:650000,Abril:650000},                              asistencia:[{f:"07/04",m:""},{f:"09/04",m:""},{f:"14/04",m:""},{f:"16/04",m:""},{f:"22/04",m:""},{f:"24/04",m:""},{f:"28/04",m:""},{f:"30/04",m:""}], foto:null },
 ];
 
 const INITIAL_PAYMENTS = [
@@ -186,14 +180,11 @@ function PinPad({ onSubmit, error, setError }) {
   };
   return (
     <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:`linear-gradient(160deg, ${B.bgDark} 0%, ${B.bg} 60%, #0c1520 100%)`,padding:24,fontFamily:"'Segoe UI',sans-serif"}}>
-      {/* BG decoration */}
       <div style={{position:"fixed",inset:0,overflow:"hidden",pointerEvents:"none"}}>
         <div style={{position:"absolute",top:"-15%",left:"-10%",width:500,height:500,borderRadius:"50%",background:`radial-gradient(circle,${B.goldBg},transparent 70%)`}}/>
         <div style={{position:"absolute",bottom:"-15%",right:"-10%",width:600,height:600,borderRadius:"50%",background:`radial-gradient(circle,rgba(30,58,95,0.4),transparent 70%)`}}/>
       </div>
-      {/* Card */}
       <div style={{position:"relative",width:"100%",maxWidth:340,background:"rgba(10,20,40,0.85)",backdropFilter:"blur(24px)",border:`1px solid ${B.goldBorder}`,borderRadius:24,padding:"40px 28px 36px",boxShadow:"0 40px 80px rgba(0,0,0,0.6)"}}>
-        {/* Logo */}
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
             <LogoLR size={64}/>
@@ -201,7 +192,6 @@ function PinPad({ onSubmit, error, setError }) {
           <div style={{fontSize:20,fontWeight:700,color:B.gold,letterSpacing:3,textTransform:"uppercase"}}>Academia LR</div>
           <div style={{fontSize:11,color:B.textSub,marginTop:4,letterSpacing:2,textTransform:"uppercase"}}>Ingresá tu PIN</div>
         </div>
-        {/* PIN dots */}
         <div style={{marginBottom:28}}>
           <div style={{display:"flex",justifyContent:"center",gap:14}}>
             {[0,1,2,3].map(i=>(
@@ -212,7 +202,6 @@ function PinPad({ onSubmit, error, setError }) {
           </div>
           {error && <div style={{textAlign:"center",marginTop:12,fontSize:13,color:"#f87171"}}>{error}</div>}
         </div>
-        {/* Keypad */}
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {KEYS.map((row,ri)=>(
             <div key={ri} style={{display:"flex",gap:10,justifyContent:"center"}}>
@@ -225,6 +214,216 @@ function PinPad({ onSubmit, error, setError }) {
           ))}
         </div>
         <div style={{textAlign:"center",marginTop:20,fontSize:11,color:B.textMuted}}>Profe · Alumnos · Un solo acceso</div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SHARED: PIN CHANGE MODAL (alumno)
+══════════════════════════════════════════════════════════════ */
+function PinChangeModal({ currentPin, onSave, onClose }) {
+  const [step, setStep] = useState("current"); // current | new | confirm
+  const [pinActual, setPinActual] = useState("");
+  const [pinNuevo, setPinNuevo] = useState("");
+  const [pinConfirm, setPinConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const KEYS = [["1","2","3"],["4","5","6"],["7","8","9"],["","0","⌫"]];
+
+  const press = (val, setter, current) => {
+    if (val === "⌫") { setter(p => p.slice(0, -1)); setError(""); return; }
+    if (current.length >= 4) return;
+    const np = current + val;
+    setter(np);
+    setError("");
+  };
+
+  const handleStep1 = () => {
+    if (pinActual.length !== 4) return;
+    if (pinActual !== currentPin) {
+      setError("PIN actual incorrecto");
+      setPinActual("");
+      return;
+    }
+    setError("");
+    setStep("new");
+  };
+
+  const handleStep2 = () => {
+    if (pinNuevo.length !== 4) return;
+    if (pinNuevo === currentPin) {
+      setError("El nuevo PIN no puede ser igual al actual");
+      setPinNuevo("");
+      return;
+    }
+    setError("");
+    setStep("confirm");
+  };
+
+  const handleStep3 = () => {
+    if (pinConfirm.length !== 4) return;
+    if (pinConfirm !== pinNuevo) {
+      setError("Los PIN no coinciden. Intentá de nuevo.");
+      setPinConfirm("");
+      return;
+    }
+    onSave(pinNuevo);
+    setSuccess(true);
+    setTimeout(onClose, 1500);
+  };
+
+  const renderKeypad = (value, setter, onComplete) => (
+    <div>
+      <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 20 }}>
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{
+            width: 42, height: 42, borderRadius: 12,
+            border: `2px solid ${value.length > i ? B.gold : B.goldBorder}`,
+            background: value.length > i ? B.goldBg : "rgba(255,255,255,0.02)",
+            display: "flex", alignItems: "center", justifyContent: "center"
+          }}>
+            {value.length > i && <div style={{ width: 11, height: 11, borderRadius: "50%", background: B.gold }} />}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {KEYS.map((row, ri) => (
+          <div key={ri} style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            {row.map((k, ki) => k === "" ? <div key={ki} style={{ flex: 1, maxWidth: 70 }} /> :
+              <button key={ki} onClick={() => press(k, setter, value)}
+                style={{ flex: 1, maxWidth: 70, height: 48, borderRadius: 12, background: k === "⌫" ? "rgba(255,255,255,0.04)" : `rgba(30,58,95,0.4)`, border: `1px solid ${B.border}`, color: B.text, fontSize: k === "⌫" ? 18 : 20, cursor: "pointer", fontFamily: "monospace" }}>
+                {k}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      {value.length === 4 && (
+        <button onClick={onComplete} style={{
+          width: "100%", marginTop: 16, padding: "10px", borderRadius: 10,
+          background: B.gold, color: B.bgDark, border: "none", fontSize: 14,
+          fontWeight: 700, cursor: "pointer", fontFamily: "'Segoe UI', sans-serif"
+        }}>
+          Continuar
+        </button>
+      )}
+    </div>
+  );
+
+  if (success) {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+        <div style={{ background: B.bgCard, border: `1px solid ${B.goldBorder}`, borderRadius: 20, padding: 40, textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: B.gold }}>¡PIN actualizado!</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+      <div style={{ width: "100%", maxWidth: 320, background: B.bgCard, border: `1px solid ${B.goldBorder}`, borderRadius: 24, padding: "28px 22px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: B.gold, marginBottom: 4 }}>
+            {step === "current" ? "Ingresá tu PIN actual" : step === "new" ? "Elegí tu nuevo PIN" : "Confirmá tu nuevo PIN"}
+          </div>
+          <div style={{ fontSize: 11, color: B.textSub }}>
+            {step === "current" ? "Por seguridad, verificá tu identidad" : step === "new" ? "Creá un PIN de 4 dígitos" : "Repetí el PIN para confirmar"}
+          </div>
+        </div>
+        {error && <div style={{ textAlign: "center", marginBottom: 12, fontSize: 12, color: "#f87171" }}>{error}</div>}
+        {step === "current" && renderKeypad(pinActual, setPinActual, handleStep1)}
+        {step === "new" && renderKeypad(pinNuevo, setPinNuevo, handleStep2)}
+        {step === "confirm" && renderKeypad(pinConfirm, setPinConfirm, handleStep3)}
+        <button onClick={onClose} style={{
+          width: "100%", marginTop: 12, padding: "8px", borderRadius: 8,
+          background: "transparent", border: `1px solid ${B.border}`, color: B.textSub,
+          fontSize: 12, cursor: "pointer", fontFamily: "'Segoe UI', sans-serif"
+        }}>
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SHARED: AVATAR EDITOR (alumno)
+══════════════════════════════════════════════════════════════ */
+function AvatarEditor({ student, onSave, onClose }) {
+  const inputRef = useRef(null);
+  const MAX_SIZE = 1.5 * 1024 * 1024; // 1.5 MB
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > MAX_SIZE) {
+      alert("La imagen debe pesar menos de 1.5 MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      onSave(ev.target.result);
+      onClose();
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemove = () => {
+    onSave(null);
+    onClose();
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+      <div style={{ width: "100%", maxWidth: 300, background: B.bgCard, border: `1px solid ${B.goldBorder}`, borderRadius: 24, padding: "28px 22px 24px", textAlign: "center" }}>
+        {/* Preview */}
+        <div style={{ marginBottom: 20 }}>
+          {student.foto ? (
+            <img src={student.foto} alt="Perfil" style={{ width: 100, height: 100, borderRadius: "50%", objectFit: "cover", border: `3px solid ${B.gold}` }} />
+          ) : (
+            <div style={{
+              width: 100, height: 100, borderRadius: "50%", background: avatarColor(student.nombre),
+              display: "flex", alignItems: "center", justifyContent: "center",
+              border: `3px solid ${B.gold}`, margin: "0 auto",
+              fontSize: 32, fontWeight: 700, color: B.gold
+            }}>
+              {student.iniciales}
+            </div>
+          )}
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: B.text, marginBottom: 4 }}>Foto de perfil</div>
+        <div style={{ fontSize: 11, color: B.textSub, marginBottom: 18 }}>Máx. 1.5 MB · JPG, PNG</div>
+
+        <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+        <button onClick={() => inputRef.current?.click()} style={{
+          width: "100%", padding: "10px", borderRadius: 10, marginBottom: 8,
+          background: B.gold, color: B.bgDark, border: "none", fontSize: 14,
+          fontWeight: 700, cursor: "pointer", fontFamily: "'Segoe UI', sans-serif"
+        }}>
+          📷 Subir foto
+        </button>
+
+        {student.foto && (
+          <button onClick={handleRemove} style={{
+            width: "100%", padding: "10px", borderRadius: 10, marginBottom: 8,
+            background: B.dangerBg, color: "#f87171", border: `1px solid ${B.dangerBorder}`,
+            fontSize: 13, cursor: "pointer", fontFamily: "'Segoe UI', sans-serif"
+          }}>
+            🗑️ Quitar foto
+          </button>
+        )}
+
+        <button onClick={onClose} style={{
+          width: "100%", padding: "8px", borderRadius: 8,
+          background: "transparent", border: `1px solid ${B.border}`, color: B.textSub,
+          fontSize: 12, cursor: "pointer", fontFamily: "'Segoe UI', sans-serif"
+        }}>
+          Cancelar
+        </button>
       </div>
     </div>
   );
@@ -246,7 +445,6 @@ const ADMIN_NAV = [
 function AdminSidebar({active,onNav,onLogout}){
   return (
     <div style={{width:215,background:B.bgDark,borderRight:`1px solid ${B.border}`,display:"flex",flexDirection:"column",flexShrink:0}}>
-      {/* Logo area */}
       <div style={{padding:"22px 18px 20px",borderBottom:`1px solid ${B.border}`,display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
         <LogoLR size={48}/>
         <div style={{textAlign:"center"}}>
@@ -254,7 +452,6 @@ function AdminSidebar({active,onNav,onLogout}){
           <div style={{fontSize:10,color:B.textSub,letterSpacing:1,marginTop:2}}>Modo Profe</div>
         </div>
       </div>
-      {/* Nav */}
       <nav style={{flex:1,padding:"12px 8px",display:"flex",flexDirection:"column",gap:2}}>
         {ADMIN_NAV.map(({id,label,emoji})=>{
           const on=active===id;
@@ -263,7 +460,6 @@ function AdminSidebar({active,onNav,onLogout}){
           </button>;
         })}
       </nav>
-      {/* Footer */}
       <div style={{padding:"14px 18px",borderTop:`1px solid ${B.border}`}}>
         <button onClick={onLogout} style={{width:"100%",padding:"8px",borderRadius:8,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:12,cursor:"pointer",fontFamily:"'Segoe UI',sans-serif"}}>Cerrar sesión</button>
       </div>
@@ -271,7 +467,6 @@ function AdminSidebar({active,onNav,onLogout}){
   );
 }
 
-/* ADMIN — Stat Card */
 function StatCard({label,value,sub,icon,color}){
   const c=color||B.gold;
   return (
@@ -308,7 +503,6 @@ function AdminDashboard({students,income}){
         <StatCard label="Tasa asistencia"   value="82%"               sub="promedio OK"            icon="📈"/>
       </div>
       <div style={{display:"flex",gap:18,flexWrap:"wrap"}}>
-        {/* Chart */}
         <div style={{flex:"1 1 380px",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:22}}>
           <div style={{fontSize:14,fontWeight:600,color:B.text,marginBottom:14}}>Ingresos 2026</div>
           <ResponsiveContainer width="100%" height={190}>
@@ -330,14 +524,17 @@ function AdminDashboard({students,income}){
             <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:B.textSub}}><div style={{width:10,height:10,background:"#60a5fa",borderRadius:2}}/> Cancha</div>
           </div>
         </div>
-        {/* Last class */}
         <div style={{flex:"1 1 200px",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:22}}>
           <div style={{fontSize:14,fontWeight:600,color:B.text,marginBottom:4}}>Última clase</div>
           <div style={{fontSize:11,color:B.textSub,marginBottom:14}}>30 Abr · {hoyPres.length} presentes</div>
           <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:200,overflowY:"auto"}}>
             {hoyPres.map(s=>(
               <div key={s.id} style={{display:"flex",alignItems:"center",gap:8}}>
-                <div style={{width:26,height:26,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:B.gold,flexShrink:0,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
+                {s.foto ? (
+                  <img src={s.foto} alt="" style={{width:26,height:26,borderRadius:"50%",objectFit:"cover",border:`1px solid ${B.border}`,flexShrink:0}} />
+                ) : (
+                  <div style={{width:26,height:26,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:B.gold,flexShrink:0,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
+                )}
                 <span style={{fontSize:12,color:B.text}}>{s.nombre}</span>
               </div>
             ))}
@@ -348,17 +545,38 @@ function AdminDashboard({students,income}){
   );
 }
 
-/* ADMIN — Alumnos */
-function AdminAlumnos({students}){
+/* ADMIN — Alumnos (con reset PIN) */
+function AdminAlumnos({students, onUpdate}){
   const [search,setSearch]=useState("");
   const [filter,setFilter]=useState("TODOS");
+  const [resetTarget, setResetTarget] = useState(null);
+
   const filtered=useMemo(()=>students.filter(s=>{
     const ms=s.nombre.toLowerCase().includes(search.toLowerCase());
     const mf=filter==="TODOS"||s.estado===filter;
     return ms&&mf;
   }),[students,search,filter]);
+
+  const handleResetPin = () => {
+    if (!resetTarget) return;
+    onUpdate(resetTarget.id, s => ({ ...s, pin: "0000" }));
+    setResetTarget(null);
+  };
+
   return (
     <div style={{padding:28}}>
+      {resetTarget && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
+          <div style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:20,padding:"28px 24px",textAlign:"center",maxWidth:320}}>
+            <div style={{fontSize:16,fontWeight:700,color:B.gold,marginBottom:8}}>Resetear PIN</div>
+            <div style={{fontSize:13,color:B.textSub,marginBottom:16}}>¿Resetear el PIN de <strong style={{color:B.text}}>{resetTarget.nombre}</strong> a <strong style={{color:B.gold}}>0000</strong>?</div>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>setResetTarget(null)} style={{flex:1,padding:"10px",borderRadius:10,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:13,cursor:"pointer"}}>Cancelar</button>
+              <button onClick={handleResetPin} style={{flex:1,padding:"10px",borderRadius:10,background:B.gold,color:B.bgDark,border:"none",fontSize:13,fontWeight:700,cursor:"pointer"}}>Resetear</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
         <div><h1 style={{fontSize:24,fontWeight:700,color:B.text,margin:0}}>Alumnos</h1><p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>{students.length} registrados</p></div>
       </div>
@@ -371,7 +589,7 @@ function AdminAlumnos({students}){
       <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,overflow:"hidden"}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr style={{borderBottom:`1px solid ${B.border}`}}>
-            {["Alumno","Estado","Abonadas","Realizadas","Diferencia","Plan"].map(h=>(
+            {["Alumno","PIN","Estado","Abonadas","Realizadas","Diferencia","Plan","Acción"].map(h=>(
               <th key={h} style={{padding:"11px 14px",textAlign:"left",fontSize:11,color:B.textSub,fontWeight:600,textTransform:"uppercase",letterSpacing:0.8}}>{h}</th>
             ))}
           </tr></thead>
@@ -381,9 +599,16 @@ function AdminAlumnos({students}){
               return <tr key={s.id} style={{borderBottom:i<filtered.length-1?`1px solid ${B.border}`:"none"}} onMouseEnter={e=>e.currentTarget.style.background=B.bg} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                 <td style={{padding:"11px 14px"}}>
                   <div style={{display:"flex",alignItems:"center",gap:9}}>
-                    <div style={{width:30,height:30,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:B.gold,flexShrink:0,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
+                    {s.foto ? (
+                      <img src={s.foto} alt="" style={{width:30,height:30,borderRadius:"50%",objectFit:"cover",border:`1px solid ${B.border}`,flexShrink:0}} />
+                    ) : (
+                      <div style={{width:30,height:30,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:B.gold,flexShrink:0,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
+                    )}
                     <span style={{fontSize:13,color:B.text,fontWeight:500}}>{s.nombre}</span>
                   </div>
+                </td>
+                <td style={{padding:"11px 14px"}}>
+                  <code style={{fontSize:12,color:B.gold,background:B.goldBg,padding:"2px 8px",borderRadius:4}}>{s.pin}</code>
                 </td>
                 <td style={{padding:"11px 14px"}}>
                   <span style={{fontSize:11,fontWeight:600,padding:"2px 9px",borderRadius:20,background:s.estado==="OK"?B.goldBg:B.dangerBg,color:s.estado==="OK"?B.gold:"#f87171",border:`1px solid ${s.estado==="OK"?B.goldBorder:B.dangerBorder}`}}>{s.estado}</span>
@@ -392,6 +617,9 @@ function AdminAlumnos({students}){
                 <td style={{padding:"11px 14px",fontSize:13,color:B.text}}>{s.realizadas}</td>
                 <td style={{padding:"11px 14px"}}><span style={{fontSize:13,fontWeight:600,color:diff>0?B.gold:diff<0?"#f87171":B.textSub}}>{diff>0?`+${diff}`:diff}</span></td>
                 <td style={{padding:"11px 14px",fontSize:12,color:B.textSub}}>{s.plan}</td>
+                <td style={{padding:"11px 14px"}}>
+                  <button onClick={()=>setResetTarget(s)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${B.warningBorder}`,background:B.warningBg,color:B.warning,fontSize:11,cursor:"pointer",fontWeight:600}}>🔒 Reset</button>
+                </td>
               </tr>;
             })}
           </tbody>
@@ -445,7 +673,11 @@ function AdminAsistencia({students,onUpdate}){
               return <tr key={s.id} style={{borderBottom:si<activeS.length-1?`1px solid ${B.border}`:"none"}} onMouseEnter={e=>e.currentTarget.style.background=B.bg} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                 <td style={{padding:"9px 18px"}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <div style={{width:26,height:26,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:B.gold,flexShrink:0,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
+                    {s.foto ? (
+                      <img src={s.foto} alt="" style={{width:26,height:26,borderRadius:"50%",objectFit:"cover",border:`1px solid ${B.border}`,flexShrink:0}} />
+                    ) : (
+                      <div style={{width:26,height:26,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:B.gold,flexShrink:0,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
+                    )}
                     <span style={{fontSize:12,color:B.text,whiteSpace:"nowrap"}}>{s.nombre}</span>
                   </div>
                 </td>
@@ -639,7 +871,7 @@ function AdminMode({students,payments,onUpdate,onLogout}){
       <AdminSidebar active={view} onNav={setView} onLogout={onLogout}/>
       <main style={{flex:1,overflowY:"auto"}}>
         {view==="dashboard"  && <AdminDashboard  students={students} income={INCOME_DATA}/>}
-        {view==="alumnos"    && <AdminAlumnos    students={students}/>}
+        {view==="alumnos"    && <AdminAlumnos    students={students} onUpdate={onUpdate}/>}
         {view==="asistencia" && <AdminAsistencia students={students} onUpdate={onUpdate}/>}
         {view==="pagos"      && <AdminPagos      payments={payments}/>}
         {view==="horarios"   && <AdminHorarios/>}
@@ -653,8 +885,10 @@ function AdminMode({students,payments,onUpdate,onLogout}){
 /* ══════════════════════════════════════════════════════════════
    STUDENT MODE
 ══════════════════════════════════════════════════════════════ */
-function StudentMode({student,onLogout}){
+function StudentMode({student,onLogout,onUpdate}){
   const [tab,setTab]=useState("cuenta");
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const notes=getNotifications(student);
   const badgeCount=notes.filter(n=>n.type==="danger"||n.type==="warning").length;
   const disp=student.abonadas-student.realizadas;
@@ -669,6 +903,14 @@ function StudentMode({student,onLogout}){
     {id:"asistencia", label:"Asistencia", icon:"◉"},
     {id:"pagos",      label:"Pagos",      icon:"◇"},
   ];
+
+  const handlePinChange = (nuevoPin) => {
+    onUpdate(student.id, s => ({ ...s, pin: nuevoPin }));
+  };
+
+  const handleAvatarChange = (fotoData) => {
+    onUpdate(student.id, s => ({ ...s, foto: fotoData }));
+  };
 
   return (
     <div style={{minHeight:"100vh",background:`linear-gradient(180deg,${B.bgDark} 0%,${B.bg} 100%)`,fontFamily:"'Segoe UI',sans-serif"}}>
@@ -697,11 +939,32 @@ function StudentMode({student,onLogout}){
         </div>
       </div>
 
+      {showPinModal && <PinChangeModal currentPin={student.pin} onSave={handlePinChange} onClose={() => setShowPinModal(false)} />}
+      {showAvatarModal && <AvatarEditor student={student} onSave={handleAvatarChange} onClose={() => setShowAvatarModal(false)} />}
+
       <div style={{maxWidth:520,margin:"0 auto",padding:"24px 20px"}}>
 
         {/* MI CUENTA */}
         {tab==="cuenta"&&(
           <div>
+            {/* Avatar + PIN section */}
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div onClick={()=>setShowAvatarModal(true)} style={{cursor:"pointer",display:"inline-block",position:"relative"}}>
+                {student.foto ? (
+                  <img src={student.foto} alt="Perfil" style={{width:90,height:90,borderRadius:"50%",objectFit:"cover",border:`3px solid ${B.gold}`}} />
+                ) : (
+                  <div style={{width:90,height:90,borderRadius:"50%",background:avatarColor(student.nombre),display:"flex",alignItems:"center",justifyContent:"center",border:`3px solid ${B.gold}`,fontSize:30,fontWeight:700,color:B.gold}}>
+                    {student.iniciales}
+                  </div>
+                )}
+                <div style={{position:"absolute",bottom:2,right:2,width:26,height:26,background:B.gold,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>📷</div>
+              </div>
+              <div style={{marginTop:10,fontSize:13,color:B.textSub}}>
+                PIN: <code style={{color:B.gold,background:B.goldBg,padding:"2px 8px",borderRadius:4,fontSize:13}}>{student.pin}</code>
+                <button onClick={()=>setShowPinModal(true)} style={{marginLeft:8,background:"transparent",border:"none",color:B.gold,cursor:"pointer",fontSize:12,textDecoration:"underline"}}>Cambiar</button>
+              </div>
+            </div>
+
             <div style={{background:B.goldBg,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:20,marginBottom:16}}>
               <div style={{fontSize:10,color:B.gold,letterSpacing:2,textTransform:"uppercase",marginBottom:16}}>Tu plan · {student.plan}</div>
               <div style={{display:"flex",justifyContent:"space-around",marginBottom:20}}>
@@ -856,7 +1119,7 @@ export default function App() {
       `}</style>
       {mode===null      && <PinPad     onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
       {mode==="admin"   && <AdminMode  students={students} payments={payments} onUpdate={updateStudent} onLogout={handleLogout}/>}
-      {mode==="student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout}/>}
+      {mode==="student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout} onUpdate={updateStudent}/>}
     </>
   );
 }
