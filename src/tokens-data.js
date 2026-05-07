@@ -28,7 +28,6 @@ export const B = {
   info:      "#3b82f6",
   infoBg:    "rgba(59,130,246,0.08)",
   infoBorder:"rgba(59,130,246,0.30)",
-  // colores grilla horarios
   individual:   "#3b82f6",
   individualBg: "#172554",
   individualBorder: "#2563eb",
@@ -152,7 +151,6 @@ export const getNotifications = (s) => {
   return notes;
 };
 
-// Detectar plan automáticamente por monto
 export const detectarPlan = (monto) => {
   const matches = [];
   for (const p of PLANES) {
@@ -162,13 +160,10 @@ export const detectarPlan = (monto) => {
   return matches.length > 0 ? matches[0] : null;
 };
 
-// Generar ID único simple
 export const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-// Capacidad máxima según tipo
 export const capacidadMax = (tipo) => tipo === "individual" ? 1 : 4;
 
-// Validar 6 horas antes
 export const puedeCancelar = (fechaStr, horaStr) => {
   const [d, m] = fechaStr.split("/").map(Number);
   const [h, min] = horaStr.split(":").map(Number);
