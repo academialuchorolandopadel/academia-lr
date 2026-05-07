@@ -12,11 +12,9 @@ import StudentMode from "./student.jsx";
 export default function App() {
   const [students, setStudents] = useState(INITIAL_STUDENTS);
   const [payments] = useState(INITIAL_PAYMENTS);
-  const [mode, setMode] = useState(null); // null | "admin" | "student"
+  const [mode, setMode] = useState(null);
   const [currentStudentId, setCurrentStudentId] = useState(null);
   const [loginError, setLoginError] = useState("");
-  
-  // Notificaciones globales
   const [notifications, setNotifications] = useState([]);
 
   const handleLogin = (pin) => {
@@ -57,8 +55,6 @@ export default function App() {
 
   const currentStudent = students.find(s => s.id === currentStudentId) || null;
 
-  const noLeidas = notifications.filter(n => !n.leido).length;
-
   return (
     <>
       <style>{`
@@ -78,7 +74,6 @@ export default function App() {
 
       {mode === "admin" && (
         <div style={{ position: "relative" }}>
-          {/* Campanita flotante */}
           <div style={{ position: "fixed", top: 12, right: 20, zIndex: 300 }}>
             <NotificationBell
               notifications={notifications.filter(n => n.para === "profe" || n.para === "todos")}
@@ -101,7 +96,6 @@ export default function App() {
 
       {mode === "student" && currentStudent && (
         <div style={{ position: "relative" }}>
-          {/* Campanita flotante */}
           <div style={{ position: "fixed", top: 12, right: 20, zIndex: 300 }}>
             <NotificationBell
               notifications={notifications.filter(n => n.para === "alumno" && n.alumnoId === currentStudent.id)}
