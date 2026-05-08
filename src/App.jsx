@@ -88,7 +88,8 @@ const NOTE_STYLE = {
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_KEYS  = ["lunes","martes","miercoles","jueves","viernes","sabado"];
 const DIAS_LABEL = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-const RECENT_DATES = ["07/04","09/04","14/04","16/04","22/04","24/04","28/04","30/04"];
+// Se actualiza dinámicamente desde Sheets
+let RECENT_DATES = ["07/04","09/04","14/04","16/04","22/04","24/04","28/04","30/04"];
 
 /* ══════════════════════════════════════════════════════════════
    DATA (RESPALDO)
@@ -407,6 +408,7 @@ function NotificationBell({ notifications, onMarkRead, onClearAll }) {
     </div>
   );
 }
+
 /* ══════════════════════════════════════════════════════════════
    ADMIN — Sidebar
 ══════════════════════════════════════════════════════════════ */
@@ -598,7 +600,7 @@ function AdminAlumnos({students, onUpdate}){
 
 /* ADMIN — Asistencia */
 function AdminAsistencia({students,onUpdate}){
-  const hoy="01/05";
+  const hoy=RECENT_DATES.length>0?RECENT_DATES[RECENT_DATES.length-1]:"01/05";
   const activeS=students.filter(s=>s.estado==="OK");
   const markAll=(marca)=>{
     activeS.forEach(s=>onUpdate(s.id,st=>{
@@ -686,7 +688,6 @@ function AdminPagos({ students, onUpdate }) {
       pagos: { ...s.pagos, [mesSeleccionado]: montoNum },
       abonadas: s.abonadas + clases,
     }));
-    // Enviar a Sheets
     fetch(API_URL + "?action=cargarPago&alumno=" + encodeURIComponent(alumnoSeleccionado.nombre) + "&mes=" + mesSeleccionado + "&monto=" + montoNum + "&clases=" + clases)
       .catch(err => console.log("Error guardando en Sheets:", err));
     setShowCarga(false); setMonto(""); setClasesManual(""); setAlumnoSeleccionado(null); setUsoAutomatico(true);
@@ -1021,7 +1022,7 @@ function StudentMode({student,onLogout,onUpdate,onAddNotification}){
 
 /* ──────────── STUDENT: HORARIOS CON AGENDAMIENTO ──────────── */
 function StudentHorarios({ student, onUpdate, onAddNotification }) {
-  const [fechaSeleccionada, setFechaSeleccionada] = useState("12/05");
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(RECENT_DATES.length>0?RECENT_DATES[RECENT_DATES.length-1]:"12/05");
   const [showConfirm, setShowConfirm] = useState(null);
   const schedule = INITIAL_SCHEDULE;
   const ags = student.agendamientos || [];
@@ -1122,22 +1123,34 @@ export default function App() {
 
   const cargarDatos = async () => {
     try {
-      const [resAlumnos, resPagos] = await Promise.all([
+      const [resAlumnos, resPagos, resAsistencia] = await Promise.all([
         fetch(API_URL + "?action=getAlumnos"),
-        fetch(API_URL + "?action=getPagos")
+        fetch(API_URL + "?action=getPagos"),
+        fetch(API_URL + "?action=getAsistencia")
       ]);
       const alumnosData = await resAlumnos.json();
       const pagosData = await resPagos.json();
+      const asistenciaData = await resAsistencia.json();
+      
+      const mapaAsistencia = {};
+      asistenciaData.forEach(a => {
+        mapaAsistencia[a.alumnoId] = a.registros;
+      });
       
       const alumnosFormateados = alumnosData.map(a => ({
         ...a,
         iniciales: initials(a.nombre),
         pagos: {},
-        asistencia: [],
+        asistencia: mapaAsistencia[a.id] || [],
         agendamientos: [],
         foto: null,
         plan: ""
       }));
+      
+      if (alumnosFormateados.length > 0 && alumnosFormateados[0].asistencia.length > 0) {
+        const todasLasFechas = alumnosFormateados[0].asistencia.map(a => a.f);
+        RECENT_DATES = todasLasFechas.slice(-8);
+      }
       
       const pagosFormateados = pagosData.map(p => ({
         alumno: p.alumno,
