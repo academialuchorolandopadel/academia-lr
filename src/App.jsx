@@ -663,3 +663,491 @@ function AdminAsistencia({students,onUpdate}){
     </div>
   );
 }
+/* ADMIN — Pagos (con carga nueva) */
+function AdminPagos({ students, onUpdate }) {
+  const [showCarga, setShowCarga] = useState(false);
+  const [alumnoSeleccionado, setAlumnoSeleccionado] = useState(null);
+  const [monto, setMonto] = useState("");
+  const [clasesManual, setClasesManual] = useState("");
+  const [usoAutomatico, setUsoAutomatico] = useState(true);
+  const [mesSeleccionado, setMesSeleccionado] = useState("Mayo");
+  const planDetectado = monto ? detectarPlan(parseInt(monto)) : null;
+  const handleCargarPago = () => {
+    if (!alumnoSeleccionado || !monto) return;
+    const montoNum = parseInt(monto);
+    const clases = usoAutomatico && planDetectado ? planDetectado.clases : parseInt(clasesManual) || 0;
+    onUpdate(alumnoSeleccionado.id, s => ({
+      ...s,
+      pagos: { ...s.pagos, [mesSeleccionado]: montoNum },
+      abonadas: s.abonadas + clases,
+    }));
+    setShowCarga(false); setMonto(""); setClasesManual(""); setAlumnoSeleccionado(null); setUsoAutomatico(true);
+  };
+  const cols = ["ene","feb","mar","abr"];
+  const labels = ["Enero","Febrero","Marzo","Abril"];
+  return (
+    <div style={{ padding: 28 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div><h1 style={{ fontSize: 24, fontWeight: 700, color: B.text, margin: 0 }}>Pagos</h1><p style={{ color: B.textSub, fontSize: 13, margin: "4px 0 0" }}>Historial de cuotas · 2026</p></div>
+        <button onClick={() => setShowCarga(true)} style={{ padding: "10px 18px", borderRadius: 10, background: B.gold, color: B.bgDark, border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Cargar pago</button>
+      </div>
+      {showCarga && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+          <div style={{ width: "100%", maxWidth: 380, background: B.bgCard, border: `1px solid ${B.goldBorder}`, borderRadius: 24, padding: "28px 24px" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: B.gold, marginBottom: 20 }}>Cargar pago</div>
+            <label style={{ fontSize: 12, color: B.textSub, display: "block", marginBottom: 6 }}>Alumno</label>
+            <select value={alumnoSeleccionado?.id || ""} onChange={e => setAlumnoSeleccionado(students.find(s => s.id === parseInt(e.target.value)))} style={{ width: "100%", padding: "10px", borderRadius: 10, background: B.bg, border: `1px solid ${B.border}`, color: B.text, fontSize: 13, marginBottom: 14, fontFamily: "'Segoe UI',sans-serif" }}>
+              <option value="">Seleccionar alumno...</option>
+              {students.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+            </select>
+            <label style={{ fontSize: 12, color: B.textSub, display: "block", marginBottom: 6 }}>Monto (₲)</label>
+            <input type="number" value={monto} onChange={e => setMonto(e.target.value)} placeholder="Ej: 650000" style={{ width: "100%", padding: "10px", borderRadius: 10, background: B.bg, border: `1px solid ${B.border}`, color: B.text, fontSize: 14, marginBottom: 6, fontFamily: "'Segoe UI',sans-serif" }} />
+            {planDetectado && (
+              <div style={{ fontSize: 12, color: B.gold, background: B.goldBg, padding: "8px 12px", borderRadius: 8, marginBottom: 12 }}>
+                🎾 Detectado: <strong>{planDetectado.plan.nombre}</strong> ({planDetectado.tipo}) → {planDetectado.clases} clases
+              </div>
+            )}
+            <label style={{ fontSize: 12, color: B.textSub, display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <input type="checkbox" checked={usoAutomatico} onChange={e => setUsoAutomatico(e.target.checked)} />
+              Asignar clases automáticamente por monto
+            </label>
+            {!usoAutomatico && (
+              <>
+                <label style={{ fontSize: 12, color: B.textSub, display: "block", marginBottom: 6 }}>Clases a asignar (manual)</label>
+                <input type="number" value={clasesManual} onChange={e => setClasesManual(e.target.value)} placeholder="Ej: 8" style={{ width: "100%", padding: "10px", borderRadius: 10, background: B.bg, border: `1px solid ${B.border}`, color: B.text, fontSize: 14, marginBottom: 14, fontFamily: "'Segoe UI',sans-serif" }} />
+              </>
+            )}
+            <label style={{ fontSize: 12, color: B.textSub, display: "block", marginBottom: 6 }}>Mes</label>
+            <select value={mesSeleccionado} onChange={e => setMesSeleccionado(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: 10, background: B.bg, border: `1px solid ${B.border}`, color: B.text, fontSize: 13, marginBottom: 20, fontFamily: "'Segoe UI',sans-serif" }}>
+              {MESES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => { setShowCarga(false); setMonto(""); setAlumnoSeleccionado(null); }} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1px solid ${B.border}`, background: "transparent", color: B.textSub, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={handleCargarPago} disabled={!alumnoSeleccionado || !monto} style={{ flex: 1, padding: "10px", borderRadius: 10, background: !alumnoSeleccionado || !monto ? B.border : B.gold, color: B.bgDark, border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: !alumnoSeleccionado || !monto ? 0.5 : 1 }}>Cargar</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div style={{ background: B.bgCard, border: `1px solid ${B.border}`, borderRadius: 12, overflow: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr style={{ borderBottom: `1px solid ${B.border}` }}>
+            <th style={{ padding: "11px 18px", textAlign: "left", fontSize: 11, color: B.textSub, fontWeight: 600, textTransform: "uppercase" }}>Alumno</th>
+            {labels.map((l, i) => <th key={i} style={{ padding: "11px 14px", textAlign: "right", fontSize: 11, color: B.textSub, fontWeight: 600, textTransform: "uppercase" }}>{l}</th>)}
+            <th style={{ padding: "11px 14px", textAlign: "right", fontSize: 11, color: B.textSub, fontWeight: 600, textTransform: "uppercase" }}>Total</th>
+          </tr></thead>
+          <tbody>
+            {INITIAL_PAYMENTS.map((p, i) => {
+              const total = cols.reduce((a, m) => a + (p[m] || 0), 0);
+              return <tr key={p.alumno} style={{ borderBottom: i < INITIAL_PAYMENTS.length - 1 ? `1px solid ${B.border}` : "none" }} onMouseEnter={e => e.currentTarget.style.background = B.bg} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <td style={{ padding: "12px 18px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <div style={{ width: 28, height: 28, background: avatarColor(p.alumno), borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: B.gold, border: `1px solid ${B.border}` }}>{initials(p.alumno)}</div>
+                    <span style={{ fontSize: 13, color: B.text }}>{p.alumno}</span>
+                  </div>
+                </td>
+                {cols.map(m => <td key={m} style={{ padding: "12px 14px", textAlign: "right" }}>{p[m] ? <span style={{ fontSize: 12, color: B.gold, fontWeight: 500 }}>{fmt(p[m])}</span> : <span style={{ fontSize: 12, color: B.textMuted }}>—</span>}</td>)}
+                <td style={{ padding: "12px 14px", textAlign: "right" }}><span style={{ fontSize: 13, fontWeight: 700, color: B.text }}>{fmt(total)}</span></td>
+              </tr>;
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ADMIN — Horarios EDITABLE */
+function AdminHorarios({ students, onUpdate, onAddNotification }) {
+  const [schedule, setSchedule] = useState(INITIAL_SCHEDULE);
+  const todosAgendamientos = useMemo(() => {
+    const ags = [];
+    students.forEach(s => { (s.agendamientos || []).forEach(a => ags.push({ ...a, alumnoId: s.id, nombre: s.nombre, iniciales: s.iniciales, foto: s.foto })); });
+    return ags;
+  }, [students]);
+  const pendientes = useMemo(() => todosAgendamientos.filter(a => a.estado === "pendiente"), [todosAgendamientos]);
+
+  const aprobarAgendamiento = (ag) => {
+    onUpdate(ag.alumnoId, s => ({ ...s, agendamientos: (s.agendamientos || []).map(a => a.id === ag.id ? { ...a, estado: "aprobado" } : a) }));
+    onAddNotification({ id: genId(), para: "alumno", alumnoId: ag.alumnoId, tipo: "aprobado", mensaje: `✅ Tu clase del ${ag.fecha} a las ${ag.hora} fue aprobada.`, titulo: "Clase aprobada", leido: false, createdAt: new Date().toLocaleString("es"), data: { agendamientoId: ag.id } });
+  };
+  const rechazarAgendamiento = (ag) => {
+    onUpdate(ag.alumnoId, s => ({ ...s, agendamientos: (s.agendamientos || []).map(a => a.id === ag.id ? { ...a, estado: "rechazado" } : a) }));
+    onAddNotification({ id: genId(), para: "alumno", alumnoId: ag.alumnoId, tipo: "rechazado", mensaje: `❌ Tu clase del ${ag.fecha} a las ${ag.hora} fue rechazada.`, titulo: "Clase rechazada", leido: false, createdAt: new Date().toLocaleString("es"), data: { agendamientoId: ag.id } });
+  };
+  const publicarSlot = (dia, hora) => {
+    onAddNotification({ id: genId(), para: "todos", alumnoId: null, tipo: "horario_publicado", mensaje: `📢 Nuevo horario disponible: ${dia} ${hora}`, titulo: "¡Horario libre!", leido: false, createdAt: new Date().toLocaleString("es"), data: { dia, hora } });
+  };
+  const cambiarTipo = (idx, nuevoTipo) => { setSchedule(prev => prev.map((s, i) => i === idx ? { ...s, tipo: nuevoTipo } : s)); };
+
+  return (
+    <div style={{ padding: 28 }}>
+      <div style={{ marginBottom: 20 }}><h1 style={{ fontSize: 24, fontWeight: 700, color: B.text, margin: 0 }}>Horarios</h1><p style={{ color: B.textSub, fontSize: 13, margin: "4px 0 0" }}>Grilla semanal editable</p></div>
+      {pendientes.length > 0 && (
+        <div style={{ background: B.warningBg, border: `1px solid ${B.warningBorder}`, borderRadius: 12, padding: "14px 18px", marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#fbbf24", marginBottom: 10 }}>🔔 Agendamientos pendientes ({pendientes.length})</div>
+          {pendientes.map(ag => (
+            <div key={ag.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${B.warningBorder}` }}>
+              <div><span style={{ fontSize: 13, color: B.text, fontWeight: 600 }}>{ag.nombre}</span><span style={{ fontSize: 11, color: B.textSub, marginLeft: 10 }}>{ag.fecha} · {ag.hora} · {ag.tipo}</span></div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => aprobarAgendamiento(ag)} style={{ padding: "4px 12px", borderRadius: 6, background: "#16a34a", color: "#fff", border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✓ Aprobar</button>
+                <button onClick={() => rechazarAgendamiento(ag)} style={{ padding: "4px 12px", borderRadius: 6, background: B.danger, color: "#fff", border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✗ Rechazar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ background: B.bgCard, border: `1px solid ${B.border}`, borderRadius: 12, overflow: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr style={{ borderBottom: `1px solid ${B.border}` }}>
+            <th style={{ padding: "11px 14px", textAlign: "left", fontSize: 11, color: B.textSub, fontWeight: 600, width: 70 }}>Hora</th>
+            {DIAS_LABEL.map(d => <th key={d} style={{ padding: "8px 6px", textAlign: "center", fontSize: 11, color: B.textSub, fontWeight: 600 }}>{d}</th>)}
+            <th style={{ padding: "8px", textAlign: "center", fontSize: 11, color: B.textSub, fontWeight: 600 }}>Tipo</th>
+            <th style={{ padding: "8px", textAlign: "center", fontSize: 11, color: B.textSub, fontWeight: 600 }}>Pub.</th>
+          </tr></thead>
+          <tbody>
+            {schedule.map((slot, idx) => {
+              const cap = capacidadMax(slot.tipo);
+              return (
+                <tr key={slot.hora} style={{ borderBottom: idx < schedule.length - 1 ? `1px solid ${B.border}` : "none" }}>
+                  <td style={{ padding: "10px 14px", fontSize: 12, color: B.textSub, fontWeight: 500 }}>{slot.hora} <span style={{ fontSize: 10, color: B.textMuted }}>({slot.duracion}′)</span></td>
+                  {DIAS_KEYS.map(dia => {
+                    const alumnosEnSlot = slot[dia] || [];
+                    const libres = cap - alumnosEnSlot.length;
+                    const colorSlot = slot.tipo === "individual" ? { bg: B.individualBg, border: B.individualBorder, text: B.individual } : { bg: B.grupalBg, border: B.grupalBorder, text: B.grupal };
+                    return (
+                      <td key={dia} style={{ padding: "4px", textAlign: "center" }}>
+                        <div style={{ background: colorSlot.bg, border: `1px solid ${colorSlot.border}`, borderRadius: 8, padding: "7px 6px", minHeight: 56 }}>
+                          {alumnosEnSlot.map((nombre, i) => (
+                            <div key={i} style={{ fontSize: 10, color: colorSlot.text, fontWeight: 500, marginBottom: 2 }}>
+                              {nombre}
+                              <button onClick={() => setSchedule(prev => prev.map((s, si) => si === idx ? { ...s, [dia]: alumnosEnSlot.filter(n => n !== nombre) } : s))} style={{ marginLeft: 4, background: "transparent", border: "none", color: B.danger, cursor: "pointer", fontSize: 10 }}>✕</button>
+                            </div>
+                          ))}
+                          {libres > 0 && (
+                            <select onChange={e => { if (!e.target.value) return; setSchedule(prev => prev.map((s, si) => si === idx ? { ...s, [dia]: [...alumnosEnSlot, e.target.value] } : s)); e.target.value = ""; }} style={{ width: "100%", fontSize: 10, padding: "3px", borderRadius: 4, background: B.bg, border: `1px solid ${B.border}`, color: B.textSub, marginTop: 4 }}>
+                              <option value="">+ Agregar ({libres} libre{libres > 1 ? "s" : ""})</option>
+                              {students.filter(s => !alumnosEnSlot.includes(s.nombre)).map(s => <option key={s.id} value={s.nombre}>{s.nombre}</option>)}
+                            </select>
+                          )}
+                          {libres === 0 && <div style={{ fontSize: 10, color: B.textMuted, marginTop: 4 }}>Completo</div>}
+                        </div>
+                      </td>
+                    );
+                  })}
+                  <td style={{ padding: "4px", textAlign: "center" }}>
+                    <select value={slot.tipo} onChange={e => cambiarTipo(idx, e.target.value)} style={{ fontSize: 10, padding: "3px", borderRadius: 4, background: B.bg, border: `1px solid ${B.border}`, color: B.textSub }}>
+                      <option value="individual">Indiv.</option>
+                      <option value="grupal">Grupal</option>
+                    </select>
+                  </td>
+                  <td style={{ padding: "4px", textAlign: "center" }}>
+                    <button onClick={() => publicarSlot(DIAS_LABEL[0], slot.hora)} style={{ fontSize: 10, padding: "4px 8px", borderRadius: 6, background: B.goldBg, border: `1px solid ${B.goldBorder}`, color: B.gold, cursor: "pointer" }}>📢</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ADMIN — Ingresos */
+function AdminIngresos(){
+  const totalAnual=INCOME_DATA.reduce((a,m)=>a+m.total,0);
+  const totalProfe=INCOME_DATA.reduce((a,m)=>a+m.profe,0);
+  const totalCancha=INCOME_DATA.reduce((a,m)=>a+m.cancha,0);
+  return (
+    <div style={{padding:28}}>
+      <div style={{marginBottom:20}}><h1 style={{fontSize:24,fontWeight:700,color:B.text,margin:0}}>Ingresos</h1><p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Resumen financiero 2026</p></div>
+      <div style={{display:"flex",gap:14,marginBottom:22,flexWrap:"wrap"}}>
+        <StatCard label="Total 2026" value={fmt(totalAnual)} sub="acumulado" icon="💰"/>
+        <StatCard label="Parte profe" value={fmt(totalProfe)} sub={`${Math.round(totalProfe/totalAnual*100)}%`} icon="🎾"/>
+        <StatCard label="Parte cancha" value={fmt(totalCancha)} sub={`${Math.round(totalCancha/totalAnual*100)}%`} icon="🏟️" color="#60a5fa"/>
+        <StatCard label="Ahorro 5%" value={fmt(totalAnual*0.05)} sub="objetivo anual" icon="🐖" color="#fbbf24"/>
+      </div>
+      <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:22,marginBottom:16}}>
+        <div style={{fontSize:14,fontWeight:600,color:B.text,marginBottom:14}}>Profe vs Cancha por mes</div>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={INCOME_DATA} barGap={4}>
+            <CartesianGrid strokeDasharray="3 3" stroke={B.border}/>
+            <XAxis dataKey="mes" tick={{fill:B.textSub,fontSize:12}} axisLine={false} tickLine={false}/>
+            <YAxis tickFormatter={v=>fmt(v)} tick={{fill:B.textSub,fontSize:10}} axisLine={false} tickLine={false}/>
+            <Tooltip formatter={(v,n)=>[fmtFull(v),n==="profe"?"Profe":"Cancha"]} contentStyle={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:8,color:B.text}}/>
+            <Bar dataKey="profe" fill={B.gold} radius={[4,4,0,0]} name="profe"/>
+            <Bar dataKey="cancha" fill="#3b82f6" radius={[4,4,0,0]} name="cancha"/>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,overflow:"hidden"}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr style={{borderBottom:`1px solid ${B.border}`}}>
+            {["Mes","Total","Profe","Cancha","% Profe"].map(h=><th key={h} style={{padding:"11px 18px",textAlign:h==="Mes"?"left":"right",fontSize:11,color:B.textSub,fontWeight:600,textTransform:"uppercase"}}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {INCOME_DATA.map((m,i)=>(
+              <tr key={m.mes} style={{borderBottom:i<INCOME_DATA.length-1?`1px solid ${B.border}`:"none"}} onMouseEnter={e=>e.currentTarget.style.background=B.bg} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <td style={{padding:"12px 18px",fontSize:13,color:B.text,fontWeight:500}}>{m.mes}</td>
+                <td style={{padding:"12px 18px",textAlign:"right",fontSize:13,color:B.text,fontWeight:700}}>{fmtFull(m.total)}</td>
+                <td style={{padding:"12px 18px",textAlign:"right",fontSize:13,color:B.gold}}>{fmtFull(m.profe)}</td>
+                <td style={{padding:"12px 18px",textAlign:"right",fontSize:13,color:"#60a5fa"}}>{fmtFull(m.cancha)}</td>
+                <td style={{padding:"12px 18px",textAlign:"right",fontSize:13,color:B.textSub}}>{Math.round(m.profe/m.total*100)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ADMIN — Planes */
+function AdminPlanes(){
+  return (
+    <div style={{padding:28}}>
+      <div style={{marginBottom:20}}><h1 style={{fontSize:24,fontWeight:700,color:B.text,margin:0}}>Planes</h1><p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Precios vigentes</p></div>
+      <div style={{display:"flex",gap:16,flexWrap:"wrap",marginBottom:24}}>
+        {PLANES.map(p=>(
+          <div key={p.code} style={{flex:"1 1 180px",background:B.bgCard,border:`1px solid ${p.popular?B.gold:B.border}`,borderRadius:16,padding:24,position:"relative"}}>
+            {p.popular&&<div style={{position:"absolute",top:14,right:14,fontSize:10,fontWeight:700,color:B.bgDark,background:B.gold,padding:"2px 9px",borderRadius:20}}>POPULAR</div>}
+            <div style={{fontSize:26,fontWeight:800,color:B.gold,marginBottom:3}}>{p.code}</div>
+            <div style={{fontSize:17,fontWeight:700,color:B.text,marginBottom:2}}>{p.nombre}</div>
+            <div style={{fontSize:12,color:B.textSub,marginBottom:16}}>{p.clases} clase{p.clases>1?"s":""}</div>
+            <div style={{borderTop:`1px solid ${B.border}`,paddingTop:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:12,color:B.textSub}}>Individual</span><span style={{fontSize:15,fontWeight:700,color:B.text}}>{fmtFull(p.individual)}</span></div>
+              {p.pareja&&<div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:B.textSub}}>En pareja</span><span style={{fontSize:15,fontWeight:700,color:B.text}}>{fmtFull(p.pareja)}</span></div>}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:22}}>
+        <div style={{fontSize:14,fontWeight:600,color:B.text,marginBottom:14}}>Tipos de asistencia</div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          {Object.entries(AT).map(([k,v])=>(
+            <div key={k} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px",borderRadius:10,background:v.bg,border:`1px solid ${v.border}`,flex:"1 1 130px"}}>
+              <span style={{fontSize:20,fontWeight:800,color:v.text}}>{k}</span>
+              <span style={{fontSize:13,color:v.text,fontWeight:500}}>{v.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ADMIN MODE WRAPPER */
+function AdminMode({students,payments,onUpdate,onAddNotification,onLogout}){
+  const [view,setView]=useState("dashboard");
+  return (
+    <div style={{display:"flex",height:"100vh",background:B.bg,color:B.text,fontFamily:"'Segoe UI',system-ui,sans-serif",overflow:"hidden"}}>
+      <AdminSidebar active={view} onNav={setView} onLogout={onLogout}/>
+      <main style={{flex:1,overflowY:"auto"}}>
+        {view==="dashboard"  && <AdminDashboard students={students}/>}
+        {view==="alumnos"    && <AdminAlumnos students={students} onUpdate={onUpdate}/>}
+        {view==="asistencia" && <AdminAsistencia students={students} onUpdate={onUpdate}/>}
+        {view==="pagos"      && <AdminPagos students={students} onUpdate={onUpdate}/>}
+        {view==="horarios"   && <AdminHorarios students={students} onUpdate={onUpdate} onAddNotification={onAddNotification}/>}
+        {view==="ingresos"   && <AdminIngresos/>}
+        {view==="planes"     && <AdminPlanes/>}
+      </main>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STUDENT MODE (con Horarios y agendamiento)
+══════════════════════════════════════════════════════════════ */
+function StudentMode({student,onLogout,onUpdate,onAddNotification}){
+  const [tab,setTab]=useState("cuenta");
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const notes=getNotifications(student);
+  const badgeCount=notes.filter(n=>n.type==="danger"||n.type==="warning").length;
+  const disp=student.abonadas-student.realizadas;
+  const pct=Math.round((student.realizadas/Math.max(student.abonadas,1))*100);
+  const presentes=student.asistencia.filter(a=>a.m==="P").length;
+  const totalC=student.asistencia.filter(a=>a.m!=="").length;
+  const asistPct=totalC?Math.round((presentes/totalC)*100):0;
+  const TABS=[
+    {id:"cuenta",label:"Mi Cuenta",icon:"◈"},
+    {id:"avisos",label:"Avisos",icon:"🔔",badge:badgeCount},
+    {id:"asistencia",label:"Asistencia",icon:"◉"},
+    {id:"pagos",label:"Pagos",icon:"◇"},
+    {id:"horarios",label:"Horarios",icon:"◻"},
+  ];
+
+  const handlePinChange=(nuevoPin)=>{onUpdate(student.id,s=>({...s,pin:nuevoPin}));};
+  const handleAvatarChange=(fotoData)=>{onUpdate(student.id,s=>({...s,foto:fotoData}));};
+
+  return (
+    <div style={{minHeight:"100vh",background:`linear-gradient(180deg,${B.bgDark} 0%,${B.bg} 100%)`,fontFamily:"'Segoe UI',sans-serif"}}>
+      <div style={{background:`rgba(10,20,40,0.95)`,backdropFilter:"blur(20px)",borderBottom:`1px solid ${B.border}`,position:"sticky",top:0,zIndex:100}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 20px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <LogoLR size={34}/>
+            <div><div style={{fontSize:10,color:B.gold,letterSpacing:2,textTransform:"uppercase"}}>Academia LR</div><div style={{fontSize:14,fontWeight:700,color:B.text}}>{student.nombre}</div></div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{padding:"3px 10px",borderRadius:20,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",background:student.estado==="OK"?B.goldBg:B.dangerBg,color:student.estado==="OK"?B.gold:"#f87171",border:`1px solid ${student.estado==="OK"?B.goldBorder:B.dangerBorder}`}}>{student.estado}</span>
+            <button onClick={onLogout} style={{background:"transparent",border:`1px solid ${B.border}`,borderRadius:8,color:B.textSub,fontSize:12,padding:"5px 10px",cursor:"pointer"}}>Salir</button>
+          </div>
+        </div>
+        <div style={{display:"flex",padding:"0 20px",overflowX:"auto"}}>
+          {TABS.map(t=>(<button key={t.id} onClick={()=>setTab(t.id)} style={{position:"relative",padding:"9px 16px",background:"transparent",border:"none",borderBottom:`2px solid ${tab===t.id?B.gold:"transparent"}`,color:tab===t.id?B.gold:B.textSub,fontSize:13,fontWeight:tab===t.id?600:400,cursor:"pointer",display:"flex",alignItems:"center",gap:5,whiteSpace:"nowrap"}}>{t.icon} {t.label}{t.badge>0&&<span style={{position:"absolute",top:5,right:3,width:16,height:16,background:B.danger,borderRadius:"50%",fontSize:9,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>{t.badge}</span>}</button>))}
+        </div>
+      </div>
+      {showPinModal&&<PinChangeModal currentPin={student.pin} onSave={handlePinChange} onClose={()=>setShowPinModal(false)}/>}
+      {showAvatarModal&&<AvatarEditor student={student} onSave={handleAvatarChange} onClose={()=>setShowAvatarModal(false)}/>}
+      <div style={{maxWidth:520,margin:"0 auto",padding:"24px 20px"}}>
+        {tab==="cuenta"&&(<div><div style={{textAlign:"center",marginBottom:20}}><div onClick={()=>setShowAvatarModal(true)} style={{cursor:"pointer",display:"inline-block",position:"relative"}}>{student.foto?<img src={student.foto} alt="Perfil" style={{width:90,height:90,borderRadius:"50%",objectFit:"cover",border:`3px solid ${B.gold}`}}/>:<div style={{width:90,height:90,borderRadius:"50%",background:avatarColor(student.nombre),display:"flex",alignItems:"center",justifyContent:"center",border:`3px solid ${B.gold}`,fontSize:30,fontWeight:700,color:B.gold}}>{student.iniciales}</div>}<div style={{position:"absolute",bottom:2,right:2,width:26,height:26,background:B.gold,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>📷</div></div><div style={{marginTop:10,fontSize:13,color:B.textSub}}>PIN: <code style={{color:B.gold,background:B.goldBg,padding:"2px 8px",borderRadius:4,fontSize:13}}>{student.pin}</code><button onClick={()=>setShowPinModal(true)} style={{marginLeft:8,background:"transparent",border:"none",color:B.gold,cursor:"pointer",fontSize:12,textDecoration:"underline"}}>Cambiar</button></div></div><div style={{background:B.goldBg,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:20,marginBottom:16}}><div style={{fontSize:10,color:B.gold,letterSpacing:2,textTransform:"uppercase",marginBottom:16}}>Tu plan · {student.plan}</div><div style={{display:"flex",justifyContent:"space-around",marginBottom:20}}>{[{n:student.abonadas,l:"Abonadas",c:B.text},{n:student.realizadas,l:"Realizadas",c:B.gold},{n:disp,l:"Disponibles",c:disp<=2?"#fbbf24":"#60a5fa"}].map(({n,l,c})=>(<div key={l} style={{textAlign:"center"}}><div style={{fontSize:40,fontWeight:700,color:c,lineHeight:1}}>{n}</div><div style={{fontSize:10,color:B.textSub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>{l}</div></div>))}</div><div style={{background:"rgba(255,255,255,0.08)",borderRadius:100,height:7,overflow:"hidden",marginBottom:5}}><div style={{height:"100%",width:`${Math.min(pct,100)}%`,background:`linear-gradient(90deg,${B.gold},${B.goldLight})`,borderRadius:100}}/></div><div style={{fontSize:11,color:B.textSub,textAlign:"right"}}>{pct}% utilizado</div></div><div style={{display:"flex",gap:10,marginBottom:16}}>{[{l:"Asistencia",v:`${asistPct}%`,i:"📊",c:asistPct>=75?B.gold:asistPct>=50?"#fbbf24":"#f87171"},{l:"Presentes",v:presentes,i:"✅",c:B.gold},{l:"Plan",v:student.plan.split(" ")[0],i:"📋",c:"#60a5fa"}].map(({l,v,i,c})=>(<div key={l} style={{flex:1,background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:"13px 10px",textAlign:"center"}}><div style={{fontSize:18,marginBottom:4}}>{i}</div><div style={{fontSize:20,fontWeight:700,color:c}}>{v}</div><div style={{fontSize:10,color:B.textSub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>{l}</div></div>))}</div>{(student.email||student.tel)&&(<div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:"14px 16px"}}><div style={{fontSize:10,color:B.textSub,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Mis datos</div>{student.email&&<div style={{fontSize:13,color:B.textSub,marginBottom:4}}>📧 {student.email}</div>}{student.tel&&<div style={{fontSize:13,color:B.textSub}}>📱 {student.tel}</div>}</div>)}</div>)}
+        {tab==="avisos"&&(<div style={{display:"flex",flexDirection:"column",gap:12}}>{notes.map((n,i)=>{const s=NOTE_STYLE[n.type];return(<div key={i} style={{background:s.bg,border:`1px solid ${s.border}`,borderRadius:16,padding:"18px 20px",display:"flex",gap:14}}><span style={{fontSize:26,flexShrink:0}}>{n.icon}</span><div><div style={{fontSize:15,fontWeight:700,color:s.text,marginBottom:6}}>{n.title}</div><div style={{fontSize:13,color:B.textSub,lineHeight:1.6}}>{n.body}</div></div></div>);})}<div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 16px",fontSize:11,color:B.textSub,lineHeight:1.6}}>ℹ️ Los avisos se generan automáticamente.</div></div>)}
+        {tab==="asistencia"&&(<div><div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>{["P","I","X","R"].map(k=>{const s=AT[k];const n=student.asistencia.filter(a=>a.m===k).length;return(<div key={k} style={{flex:"1 1 80px",padding:"12px 10px",borderRadius:12,background:s.bg,border:`1px solid ${s.border}`,textAlign:"center"}}><div style={{fontSize:26,fontWeight:700,color:s.text}}>{n}</div><div style={{fontSize:10,color:s.text,opacity:0.8,letterSpacing:1,textTransform:"uppercase",marginTop:3}}>{s.label}</div></div>);})}</div><div style={{display:"flex",flexDirection:"column",gap:8}}>{student.asistencia.map(({f,m},i)=>{const s=AT[m];return(<div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:s?`${s.bg}88`:B.bgCard,border:`1px solid ${s?s.border+"55":B.border}`,borderRadius:12,padding:"13px 16px"}}><div style={{display:"flex",alignItems:"center",gap:12}}><div style={{fontSize:12,color:B.textSub,minWidth:50}}>{f}</div><div style={{width:1,height:18,background:B.border}}/><div style={{fontSize:13,color:s?s.text:B.textMuted}}>{s?s.label:"Sin clase registrada"}</div></div>{s&&<div style={{width:30,height:30,borderRadius:8,background:s.bg,border:`1px solid ${s.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:s.text,fontWeight:700}}>{s.icon}</div>}</div>);})}</div></div>)}
+        {tab==="pagos"&&(<div>{Object.keys(student.pagos).length>0?(<><div style={{background:B.goldBg,border:`1px solid ${B.goldBorder}`,borderRadius:18,padding:"20px 24px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:10,color:B.gold,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Total abonado 2026</div><div style={{fontSize:30,fontWeight:700,color:B.text}}>{fmtFull(Object.values(student.pagos).reduce((a,v)=>a+v,0))}</div></div><span style={{fontSize:36}}>💰</span></div><div style={{display:"flex",flexDirection:"column",gap:8}}>{Object.entries(student.pagos).map(([mes,monto])=>(<div key={mes} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:"13px 16px"}}><div style={{display:"flex",alignItems:"center",gap:12}}><div style={{width:32,height:32,borderRadius:10,background:B.goldBg,border:`1px solid ${B.goldBorder}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>📅</div><div><div style={{fontSize:14,color:B.text}}>{mes}</div><div style={{fontSize:10,color:B.gold,letterSpacing:1,textTransform:"uppercase"}}>PAGADO</div></div></div><div style={{fontSize:15,fontWeight:700,color:B.gold}}>{fmtFull(monto)}</div></div>))}</div></>):(<div style={{background:B.dangerBg,border:`1px solid ${B.dangerBorder}`,borderRadius:16,padding:32,textAlign:"center"}}><div style={{fontSize:36,marginBottom:12}}>📋</div><div style={{fontSize:15,color:"#f87171"}}>Sin pagos registrados</div><div style={{fontSize:13,color:B.textSub,marginTop:6}}>Consultá con tu profe.</div></div>)}</div>)}
+        {tab==="horarios"&&<StudentHorarios student={student} onUpdate={onUpdate} onAddNotification={onAddNotification}/>}
+      </div>
+    </div>
+  );
+}
+
+/* ──────────── STUDENT: HORARIOS CON AGENDAMIENTO ──────────── */
+function StudentHorarios({ student, onUpdate, onAddNotification }) {
+  const [fechaSeleccionada, setFechaSeleccionada] = useState("12/05");
+  const [showConfirm, setShowConfirm] = useState(null);
+  const schedule = INITIAL_SCHEDULE;
+  const ags = student.agendamientos || [];
+  const disp = student.abonadas - student.realizadas;
+  const sinClases = disp <= 0;
+
+  const confirmarAgendamiento = () => {
+    if (!showConfirm) return;
+    const agendamiento = { id: genId(), fecha: fechaSeleccionada, hora: showConfirm.hora, tipo: showConfirm.tipo, estado: "pendiente", agendadoPor: "alumno", createdAt: new Date().toISOString() };
+    onUpdate(student.id, s => ({ ...s, agendamientos: [...(s.agendamientos || []), agendamiento] }));
+    onAddNotification({ id: genId(), para: "profe", alumnoId: student.id, tipo: "agendamiento_pendiente", mensaje: `${student.nombre} se agendó para el ${fechaSeleccionada} a las ${showConfirm.hora}`, titulo: "Nuevo agendamiento", leido: false, createdAt: new Date().toLocaleString("es"), data: { agendamientoId: agendamiento.id, fecha: fechaSeleccionada, hora: showConfirm.hora } });
+    setShowConfirm(null);
+  };
+
+  const cancelarAgendamiento = (ag) => {
+    if (!puedeCancelar(ag.fecha, ag.hora)) { alert("No se puede cancelar con menos de 6 horas."); return; }
+    onUpdate(student.id, s => ({ ...s, agendamientos: (s.agendamientos || []).map(a => a.id === ag.id ? { ...a, estado: "cancelado" } : a) }));
+    onAddNotification({ id: genId(), para: "profe", alumnoId: student.id, tipo: "cancelacion", mensaje: `${student.nombre} canceló su clase del ${ag.fecha} a las ${ag.hora}`, titulo: "Cancelación", leido: false, createdAt: new Date().toLocaleString("es"), data: { agendamientoId: ag.id } });
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 12, color: B.textSub, marginBottom: 6 }}>📅 Fecha</div>
+        <input type="text" value={fechaSeleccionada} onChange={e => setFechaSeleccionada(e.target.value)} placeholder="DD/MM" style={{ padding: "10px 14px", borderRadius: 10, background: B.bgCard, border: `1px solid ${B.border}`, color: B.text, fontSize: 14, fontFamily: "'Segoe UI',sans-serif", width: "100%" }} />
+      </div>
+      {ags.filter(a => a.fecha === fechaSeleccionada && a.estado !== "cancelado" && a.estado !== "rechazado").length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: B.textSub, marginBottom: 8 }}>📋 Mis clases este día</div>
+          {ags.filter(a => a.fecha === fechaSeleccionada && a.estado !== "cancelado" && a.estado !== "rechazado").map(ag => (
+            <div key={ag.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, marginBottom: 6, background: ag.estado === "aprobado" ? "#052e16" : ag.estado === "pendiente" ? B.pendienteBg : B.bgCard, border: `1px solid ${ag.estado === "aprobado" ? "#16a34a" : ag.estado === "pendiente" ? B.pendienteBorder : B.border}` }}>
+              <div><div style={{ fontSize: 13, color: B.text, fontWeight: 600 }}>{ag.hora} · {ag.tipo}</div><div style={{ fontSize: 11, color: ag.estado === "aprobado" ? "#4ade80" : ag.estado === "pendiente" ? B.pendiente : B.textSub }}>{ag.estado === "aprobado" ? "✅ Confirmada" : ag.estado === "pendiente" ? "⏳ Pendiente" : ag.estado}</div></div>
+              {puedeCancelar(ag.fecha, ag.hora) && <button onClick={() => cancelarAgendamiento(ag)} style={{ padding: "4px 10px", borderRadius: 6, background: B.dangerBg, border: `1px solid ${B.dangerBorder}`, color: "#f87171", fontSize: 11, cursor: "pointer" }}>Cancelar</button>}
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ fontSize: 12, color: B.textSub, marginBottom: 8 }}>🕐 Horarios disponibles</div>
+      <div style={{ background: B.bgCard, border: `1px solid ${B.border}`, borderRadius: 12, overflow: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr style={{ borderBottom: `1px solid ${B.border}` }}><th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, color: B.textSub, fontWeight: 600, width: 60 }}>Hora</th><th style={{ padding: "8px", textAlign: "center", fontSize: 11, color: B.textSub, fontWeight: 600 }}>Alumnos</th><th style={{ padding: "8px", textAlign: "center", fontSize: 11, color: B.textSub, fontWeight: 600 }}>Cupo</th><th style={{ padding: "8px", textAlign: "center", fontSize: 11, color: B.textSub, fontWeight: 600 }}>Acción</th></tr></thead>
+          <tbody>
+            {schedule.map((slot, idx) => {
+              const cap = capacidadMax(slot.tipo);
+              const alumnosEnSlot = slot["lunes"] || [];
+              const libres = cap - alumnosEnSlot.length;
+              const colorSlot = slot.tipo === "individual" ? { bg: B.individualBg, border: B.individualBorder, text: B.individual } : { bg: B.grupalBg, border: B.grupalBorder, text: B.grupal };
+              const yaAnotado = ags.some(a => a.fecha === fechaSeleccionada && a.hora === slot.hora && a.estado !== "cancelado" && a.estado !== "rechazado");
+              return (
+                <tr key={slot.hora} style={{ borderBottom: idx < schedule.length - 1 ? `1px solid ${B.border}` : "none" }}>
+                  <td style={{ padding: "10px 12px", fontSize: 12, color: B.textSub, fontWeight: 500 }}>{slot.hora}<div style={{ fontSize: 9, color: B.textMuted }}>{slot.duracion}′ · {slot.tipo}</div></td>
+                  <td style={{ padding: "6px", textAlign: "center" }}><div style={{ background: colorSlot.bg, border: `1px solid ${colorSlot.border}`, borderRadius: 8, padding: "8px 6px", minHeight: 50 }}>{alumnosEnSlot.length === 0 ? <div style={{ fontSize: 10, color: B.textMuted }}>Vacío</div> : alumnosEnSlot.map((nombre, i) => <div key={i} style={{ fontSize: 10, color: colorSlot.text, fontWeight: 500, marginBottom: 2 }}>{nombre}</div>)}</div></td>
+                  <td style={{ padding: "6px", textAlign: "center" }}><span style={{ fontSize: 13, fontWeight: 700, color: libres > 0 ? (slot.tipo === "individual" ? B.individual : B.grupal) : B.danger }}>{libres > 0 ? `${libres}/${cap}` : "Lleno"}</span></td>
+                  <td style={{ padding: "6px", textAlign: "center" }}>
+                    {yaAnotado ? <span style={{ fontSize: 10, color: B.gold }}>Anotado</span> : libres > 0 ? <button onClick={() => setShowConfirm({ hora: slot.hora, tipo: slot.tipo })} style={{ padding: "5px 12px", borderRadius: 8, background: B.gold, color: B.bgDark, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{sinClases ? "⚠️ Anotarme" : "Anotarme"}</button> : <span style={{ fontSize: 10, color: B.textMuted }}>Completo</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {sinClases && <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 10, background: B.warningBg, border: `1px solid ${B.warningBorder}`, fontSize: 12, color: "#fbbf24" }}>⚠️ No tenés clases disponibles. Podés anotarte pero quedará pendiente.</div>}
+      {showConfirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+          <div style={{ width: "100%", maxWidth: 320, background: B.bgCard, border: `1px solid ${B.goldBorder}`, borderRadius: 24, padding: "28px 22px", textAlign: "center" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>🎾</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: B.gold, marginBottom: 4 }}>Confirmar agendamiento</div>
+            <div style={{ fontSize: 13, color: B.textSub, marginBottom: 6 }}>{fechaSeleccionada} · {showConfirm.hora} · {showConfirm.tipo}</div>
+            {sinClases && <div style={{ fontSize: 12, color: "#fbbf24", marginBottom: 12, background: B.warningBg, padding: "8px", borderRadius: 8 }}>⚠️ No tenés clases disponibles.</div>}
+            <div style={{ fontSize: 11, color: B.textSub, marginBottom: 18 }}>Tu agendamiento quedará <strong style={{ color: B.pendiente }}>pendiente</strong> hasta que el profe lo apruebe.</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowConfirm(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1px solid ${B.border}`, background: "transparent", color: B.textSub, fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={confirmarAgendamiento} style={{ flex: 1, padding: "10px", borderRadius: 10, background: B.gold, color: B.bgDark, border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MAIN APP
+══════════════════════════════════════════════════════════════ */
+export default function App() {
+  const [students,setStudents]=useState(INITIAL_STUDENTS);
+  const [payments]=useState(INITIAL_PAYMENTS);
+  const [mode,setMode]=useState(null);
+  const [currentStudentId,setCurrentStudentId]=useState(null);
+  const [loginError,setLoginError]=useState("");
+  const [notifications,setNotifications]=useState([]);
+
+  const handleLogin=(pin)=>{
+    if(pin===PROFE_PIN){setMode("admin");return true;}
+    const found=students.find(s=>s.pin===pin);
+    if(found){setCurrentStudentId(found.id);setMode("student");return true;}
+    return false;
+  };
+  const handleLogout=()=>{setMode(null);setCurrentStudentId(null);setLoginError("");};
+  const updateStudent=(id,updater)=>{setStudents(prev=>prev.map(s=>s.id===id?updater(s):s));};
+  const addNotification=useCallback((notif)=>{setNotifications(prev=>[...prev,notif]);},[]);
+  const markNotificationRead=(id)=>{setNotifications(prev=>prev.map(n=>n.id===id?{...n,leido:true}:n));};
+  const clearAllNotifications=()=>{setNotifications([]);};
+  const currentStudent=students.find(s=>s.id===currentStudentId)||null;
+
+  return (
+    <>
+      <style>{`
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{background:${B.bg};}
+        ::-webkit-scrollbar{width:5px;height:5px;}
+        ::-webkit-scrollbar-track{background:${B.bgDark};}
+        ::-webkit-scrollbar-thumb{background:${B.border};border-radius:3px;}
+        input::placeholder{color:${B.textMuted};}
+        button:focus{outline:none;}
+        select:focus{outline:none;}
+      `}</style>
+      {mode===null&&<PinPad onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
+      {mode==="admin"&&(
+        <div style={{position:"relative"}}>
+          <div style={{position:"fixed",top:12,right:20,zIndex:300}}>
+            <NotificationBell notifications={notifications.filter(n=>n.para==="profe"||n.para==="todos")} onMarkRead={markNotificationRead} onClearAll={clearAllNotifications}/>
+          </div>
+          <AdminMode students={students} payments={payments} onUpdate={updateStudent} onAddNotification={addNotification} onLogout={handleLogout}/>
+        </div>
+      )}
+      {mode==="student"&&currentStudent&&(
+        <div style={{position:"relative"}}>
+          <div style={{position:"fixed",top:12,right:20,zIndex:300}}>
+            <NotificationBell notifications={notifications.filter(n=>n.para==="alumno"&&n.alumnoId===currentStudent.id)} onMarkRead={markNotificationRead} onClearAll={clearAllNotifications}/>
+          </div>
+          <StudentMode student={currentStudent} onLogout={handleLogout} onUpdate={updateStudent} onAddNotification={addNotification}/>
+        </div>
+      )}
+    </>
+  );
+}
