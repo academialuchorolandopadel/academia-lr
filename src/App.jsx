@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -41,6 +41,11 @@ const B = {
   pendienteBg:  "#422006",
   pendienteBorder: "#d97706",
 };
+
+/* ══════════════════════════════════════════════════════════════
+   API URL
+══════════════════════════════════════════════════════════════ */
+const API_URL = "https://script.google.com/macros/s/AKfycbyuy5Z_cSKCz4Y64FN5cS831xDuxBcZ3IzTM1wLamjL1Ml7_qYAgCwaMGlomuiBktNW/exec";
 
 /* ══════════════════════════════════════════════════════════════
    SVG LOGO — LR Monogram
@@ -86,7 +91,7 @@ const DIAS_LABEL = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 const RECENT_DATES = ["07/04","09/04","14/04","16/04","22/04","24/04","28/04","30/04"];
 
 /* ══════════════════════════════════════════════════════════════
-   DATA
+   DATA (RESPALDO)
 ══════════════════════════════════════════════════════════════ */
 const INCOME_DATA = [
   { mes:"Ene", total:6150000,  profe:4305000,  cancha:1845000 },
@@ -189,7 +194,6 @@ const puedeCancelar = (fechaStr, horaStr) => {
   const ahora = new Date();
   return (fc.getTime() - ahora.getTime()) / (1000 * 60 * 60) > 6;
 };
-
 /* ══════════════════════════════════════════════════════════════
    SHARED: PIN PAD
 ══════════════════════════════════════════════════════════════ */
@@ -242,6 +246,7 @@ function PinPad({ onSubmit, error, setError }) {
     </div>
   );
 }
+
 /* ══════════════════════════════════════════════════════════════
    SHARED: PIN CHANGE MODAL (alumno)
 ══════════════════════════════════════════════════════════════ */
@@ -402,7 +407,6 @@ function NotificationBell({ notifications, onMarkRead, onClearAll }) {
     </div>
   );
 }
-
 /* ══════════════════════════════════════════════════════════════
    ADMIN — Sidebar
 ══════════════════════════════════════════════════════════════ */
@@ -663,7 +667,7 @@ function AdminAsistencia({students,onUpdate}){
     </div>
   );
 }
-/* ADMIN — Pagos (con carga nueva) */
+/* ADMIN — Pagos (con carga nueva + Sheets) */
 function AdminPagos({ students, onUpdate }) {
   const [showCarga, setShowCarga] = useState(false);
   const [alumnoSeleccionado, setAlumnoSeleccionado] = useState(null);
@@ -672,6 +676,7 @@ function AdminPagos({ students, onUpdate }) {
   const [usoAutomatico, setUsoAutomatico] = useState(true);
   const [mesSeleccionado, setMesSeleccionado] = useState("Mayo");
   const planDetectado = monto ? detectarPlan(parseInt(monto)) : null;
+  
   const handleCargarPago = () => {
     if (!alumnoSeleccionado || !monto) return;
     const montoNum = parseInt(monto);
@@ -681,8 +686,12 @@ function AdminPagos({ students, onUpdate }) {
       pagos: { ...s.pagos, [mesSeleccionado]: montoNum },
       abonadas: s.abonadas + clases,
     }));
+    // Enviar a Sheets
+    fetch(API_URL + "?action=cargarPago&alumno=" + encodeURIComponent(alumnoSeleccionado.nombre) + "&mes=" + mesSeleccionado + "&monto=" + montoNum + "&clases=" + clases)
+      .catch(err => console.log("Error guardando en Sheets:", err));
     setShowCarga(false); setMonto(""); setClasesManual(""); setAlumnoSeleccionado(null); setUsoAutomatico(true);
   };
+  
   const cols = ["ene","feb","mar","abr"];
   const labels = ["Enero","Febrero","Marzo","Abril"];
   return (
@@ -1096,28 +1105,81 @@ function StudentHorarios({ student, onUpdate, onAddNotification }) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   MAIN APP
+   MAIN APP (con conexión a Sheets)
 ══════════════════════════════════════════════════════════════ */
 export default function App() {
-  const [students,setStudents]=useState(INITIAL_STUDENTS);
-  const [payments]=useState(INITIAL_PAYMENTS);
-  const [mode,setMode]=useState(null);
-  const [currentStudentId,setCurrentStudentId]=useState(null);
-  const [loginError,setLoginError]=useState("");
-  const [notifications,setNotifications]=useState([]);
+  const [students, setStudents] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState(null);
+  const [currentStudentId, setCurrentStudentId] = useState(null);
+  const [loginError, setLoginError] = useState("");
+  const [notifications, setNotifications] = useState([]);
 
-  const handleLogin=(pin)=>{
-    if(pin===PROFE_PIN){setMode("admin");return true;}
-    const found=students.find(s=>s.pin===pin);
-    if(found){setCurrentStudentId(found.id);setMode("student");return true;}
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const cargarDatos = async () => {
+    try {
+      const [resAlumnos, resPagos] = await Promise.all([
+        fetch(API_URL + "?action=getAlumnos"),
+        fetch(API_URL + "?action=getPagos")
+      ]);
+      const alumnosData = await resAlumnos.json();
+      const pagosData = await resPagos.json();
+      
+      const alumnosFormateados = alumnosData.map(a => ({
+        ...a,
+        iniciales: initials(a.nombre),
+        pagos: {},
+        asistencia: [],
+        agendamientos: [],
+        foto: null,
+        plan: ""
+      }));
+      
+      const pagosFormateados = pagosData.map(p => ({
+        alumno: p.alumno,
+        ene: p.ene || 0,
+        feb: p.feb || 0,
+        mar: p.mar || 0,
+        abr: p.abr || 0
+      }));
+      
+      setStudents(alumnosFormateados);
+      setPayments(pagosFormateados);
+    } catch (err) {
+      console.log("Usando datos locales:", err);
+      setStudents(INITIAL_STUDENTS);
+      setPayments(INITIAL_PAYMENTS);
+    }
+    setLoading(false);
+  };
+
+  const handleLogin = (pin) => {
+    if (pin === PROFE_PIN) { setMode("admin"); return true; }
+    const found = students.find(s => s.pin === pin);
+    if (found) { setCurrentStudentId(found.id); setMode("student"); return true; }
     return false;
   };
-  const handleLogout=()=>{setMode(null);setCurrentStudentId(null);setLoginError("");};
-  const updateStudent=(id,updater)=>{setStudents(prev=>prev.map(s=>s.id===id?updater(s):s));};
-  const addNotification=useCallback((notif)=>{setNotifications(prev=>[...prev,notif]);},[]);
-  const markNotificationRead=(id)=>{setNotifications(prev=>prev.map(n=>n.id===id?{...n,leido:true}:n));};
-  const clearAllNotifications=()=>{setNotifications([]);};
-  const currentStudent=students.find(s=>s.id===currentStudentId)||null;
+  const handleLogout = () => { setMode(null); setCurrentStudentId(null); setLoginError(""); };
+  const updateStudent = (id, updater) => { setStudents(prev => prev.map(s => s.id === id ? updater(s) : s)); };
+  const addNotification = useCallback((notif) => { setNotifications(prev => [...prev, notif]); }, []);
+  const markNotificationRead = (id) => { setNotifications(prev => prev.map(n => n.id === id ? { ...n, leido: true } : n)); };
+  const clearAllNotifications = () => { setNotifications([]); };
+  const currentStudent = students.find(s => s.id === currentStudentId) || null;
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: B.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <LogoLR size={80} />
+          <div style={{ fontSize: 18, color: B.gold, marginTop: 20 }}>Cargando datos...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -1131,21 +1193,21 @@ export default function App() {
         button:focus{outline:none;}
         select:focus{outline:none;}
       `}</style>
-      {mode===null&&<PinPad onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
-      {mode==="admin"&&(
-        <div style={{position:"relative"}}>
-          <div style={{position:"fixed",top:12,right:20,zIndex:300}}>
-            <NotificationBell notifications={notifications.filter(n=>n.para==="profe"||n.para==="todos")} onMarkRead={markNotificationRead} onClearAll={clearAllNotifications}/>
+      {mode === null && <PinPad onSubmit={handleLogin} error={loginError} setError={setLoginError} />}
+      {mode === "admin" && (
+        <div style={{ position: "relative" }}>
+          <div style={{ position: "fixed", top: 12, right: 20, zIndex: 300 }}>
+            <NotificationBell notifications={notifications.filter(n => n.para === "profe" || n.para === "todos")} onMarkRead={markNotificationRead} onClearAll={clearAllNotifications} />
           </div>
-          <AdminMode students={students} payments={payments} onUpdate={updateStudent} onAddNotification={addNotification} onLogout={handleLogout}/>
+          <AdminMode students={students} payments={payments} onUpdate={updateStudent} onAddNotification={addNotification} onLogout={handleLogout} />
         </div>
       )}
-      {mode==="student"&&currentStudent&&(
-        <div style={{position:"relative"}}>
-          <div style={{position:"fixed",top:12,right:20,zIndex:300}}>
-            <NotificationBell notifications={notifications.filter(n=>n.para==="alumno"&&n.alumnoId===currentStudent.id)} onMarkRead={markNotificationRead} onClearAll={clearAllNotifications}/>
+      {mode === "student" && currentStudent && (
+        <div style={{ position: "relative" }}>
+          <div style={{ position: "fixed", top: 12, right: 20, zIndex: 300 }}>
+            <NotificationBell notifications={notifications.filter(n => n.para === "alumno" && n.alumnoId === currentStudent.id)} onMarkRead={markNotificationRead} onClearAll={clearAllNotifications} />
           </div>
-          <StudentMode student={currentStudent} onLogout={handleLogout} onUpdate={updateStudent} onAddNotification={addNotification}/>
+          <StudentMode student={currentStudent} onLogout={handleLogout} onUpdate={updateStudent} onAddNotification={addNotification} />
         </div>
       )}
     </>
