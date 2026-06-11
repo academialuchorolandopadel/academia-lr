@@ -7,7 +7,7 @@
 //   /config/horarios                ← { horas: [...], asign: { "Lunes|9:00": [nombres] } }
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL } from '../constants'
 
@@ -19,7 +19,6 @@ const dateKey = (f) => {
 const countRealizadas = (asistencia) =>
   asistencia.filter(a => a.m === 'P' || a.m === 'R').length
 
-// Agenda por defecto, derivada de los horarios originales
 function defaultSchedule() {
   const horas = SCHEDULE_SLOTS.map(s => s.hora)
   const asign = {}
@@ -74,6 +73,12 @@ export function useAcademia() {
   const [error, setError]       = useState(null)
   const studentsRef = useRef([])
 
+  const commitLocal = (id, updated) => setStudents(prev => {
+    const next = prev.map(s => s.id === id ? updated : s)
+    studentsRef.current = next
+    return next
+  })
+
   useEffect(() => {
     async function load() {
       try {
@@ -82,7 +87,6 @@ export function useAcademia() {
         list.sort((a, b) => a.nombre.localeCompare(b.nombre))
         setStudents(list)
         studentsRef.current = list
-
         const schSnap = await getDoc(doc(db, 'config', 'horarios'))
         setSchedule(schSnap.exists() ? schSnap.data() : defaultSchedule())
       } catch (err) {
@@ -100,24 +104,40 @@ export function useAcademia() {
     if (!old) return
     const updated = updater(old)
     updated.realizadas = countRealizadas(updated.asistencia)
-    setStudents(prev => {
-      const next = prev.map(s => s.id === id ? updated : s)
-      studentsRef.current = next
-      return next
-    })
+    commitLocal(id, updated)
     syncToFirestore(old, updated).catch(err => console.error('Firestore write error:', err))
   }, [])
 
-  // Guardar agenda (optimista + Firestore)
-  const saveSchedule = useCallback((next) => {
-    setSchedule(next)
-    setDoc(doc(db, 'config', 'horarios'), next)
-      .catch(err => console.error('Schedule write error:', err))
+  // Registrar / editar un pago. addClases (opcional) suma al paquete (abonadas).
+  const addPayment = useCallback((id, mes, monto, addClases = 0) => {
+    const old = studentsRef.current.find(s => s.id === id)
+    if (!old) return
+    const extra = Number(addClases) || 0
+    const pagos = { ...(old.pagos || {}), [mes]: Number(monto) }
+    const abonadas = old.abonadas + extra
+    const updated = { ...old, pagos, abonadas }
+    commitLocal(id, updated)
+    ;(async () => {
+      try {
+        await setDoc(doc(db, 'alumnos', id, 'pagos', mes), { mes, monto: Number(monto) })
+        if (extra) await updateDoc(doc(db, 'alumnos', id), { abonadas })
+      } catch (e) { console.error('addPayment error:', e) }
+    })()
   }, [])
 
-  const payments = students
-    .map(s => ({ alumno: s.nombre, meses: s.pagos || {} }))
-    .filter(p => Object.keys(p.meses).length > 0)
+  const removePayment = useCallback((id, mes) => {
+    const old = studentsRef.current.find(s => s.id === id)
+    if (!old) return
+    const pagos = { ...(old.pagos || {}) }
+    delete pagos[mes]
+    commitLocal(id, { ...old, pagos })
+    deleteDoc(doc(db, 'alumnos', id, 'pagos', mes)).catch(e => console.error('removePayment error:', e))
+  }, [])
 
-  return { students, payments, schedule, loading, error, updateStudent, saveSchedule }
+  const saveSchedule = useCallback((next) => {
+    setSchedule(next)
+    setDoc(doc(db, 'config', 'horarios'), next).catch(err => console.error('Schedule write error:', err))
+  }, [])
+
+  return { students, schedule, loading, error, updateStudent, addPayment, removePayment, saveSchedule }
 }
