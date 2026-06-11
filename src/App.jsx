@@ -9,7 +9,7 @@ import { AdminMode }   from "./components/AdminMode"
 import { StudentMode } from "./components/StudentMode"
 
 // ── Seed inicial (usar UNA sola vez, luego volver a comentar) ────────────────
-// import { seedFirestore } from "./seed"
+import { seedFirestore } from "./seed"
 
 // ─── Pantallas de estado ──────────────────────────────────────────────────────
 function LoadingScreen() {
@@ -128,7 +128,7 @@ export default function App() {
       `}</style>
 
       {/* Botón de seed — descomentar solo para cargar datos, luego borrar */}
-      {/* <button onClick={seedFirestore} style={{position:"fixed",bottom:12,right:12,zIndex:9999,padding:"8px 14px",background:"#16a34a",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:12}}>🌱 Seed DB</button> */}
+      <button onClick={seedFirestore} style={{position:"fixed",bottom:12,right:12,zIndex:9999,padding:"8px 14px",background:"#16a34a",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:12}}>🌱 Seed DB</button>
 
       {mode === null      && <PinPad     onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
       {mode === "profe"   && <ProfeAuth  onSuccess={() => setMode("admin")} onCancel={() => setMode(null)}/>}
