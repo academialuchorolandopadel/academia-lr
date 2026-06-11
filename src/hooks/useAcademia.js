@@ -19,6 +19,10 @@ const dateKey = (f) => {
 const countRealizadas = (asistencia) =>
   asistencia.filter(a => a.m === 'P' || a.m === 'R').length
 
+// Fecha local en formato ISO YYYY-MM-DD
+const isoLocal = (dt = new Date()) =>
+  `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
+
 // Estado automático: si le quedan clases disponibles → OK, si no → VENCIDO
 const computeEstado = (abonadas, realizadas) =>
   ((abonadas || 0) - (realizadas || 0)) > 0 ? 'OK' : 'VENCIDO'
@@ -43,7 +47,12 @@ async function fetchAlumnoFull(docSnap) {
     .sort((a, b) => dateKey(a.f) - dateKey(b.f))
   const pagosSnap = await getDocs(collection(db, 'alumnos', docSnap.id, 'pagos'))
   base.pagos = {}
-  pagosSnap.docs.forEach(d => { base.pagos[d.data().mes] = d.data().monto })
+  base.pagosDetalle = []
+  pagosSnap.docs.forEach(d => {
+    const x = d.data()
+    base.pagos[x.mes] = x.monto
+    base.pagosDetalle.push({ mes: x.mes, monto: x.monto, fecha: x.fecha || null })
+  })
   base.realizadas = countRealizadas(base.asistencia)
   base.estado = computeEstado(base.abonadas, base.realizadas)
   return base
@@ -115,18 +124,20 @@ export function useAcademia() {
   }, [])
 
   // Registrar / editar un pago. addClases (opcional) suma al paquete (abonadas).
-  const addPayment = useCallback((id, mes, monto, addClases = 0) => {
+  const addPayment = useCallback((id, mes, monto, addClases = 0, fecha = null) => {
     const old = studentsRef.current.find(s => s.id === id)
     if (!old) return
     const extra = Number(addClases) || 0
+    const f = fecha || isoLocal()
     const pagos = { ...(old.pagos || {}), [mes]: Number(monto) }
+    const detalle = [...(old.pagosDetalle || []).filter(p => p.mes !== mes), { mes, monto: Number(monto), fecha: f }]
     const abonadas = old.abonadas + extra
     const estado = computeEstado(abonadas, old.realizadas)
-    const updated = { ...old, pagos, abonadas, estado }
+    const updated = { ...old, pagos, pagosDetalle: detalle, abonadas, estado }
     commitLocal(id, updated)
     ;(async () => {
       try {
-        await setDoc(doc(db, 'alumnos', id, 'pagos', mes), { mes, monto: Number(monto) })
+        await setDoc(doc(db, 'alumnos', id, 'pagos', mes), { mes, monto: Number(monto), fecha: f })
         if (extra) await updateDoc(doc(db, 'alumnos', id), { abonadas, estado })
       } catch (e) { console.error('addPayment error:', e) }
     })()
@@ -137,7 +148,8 @@ export function useAcademia() {
     if (!old) return
     const pagos = { ...(old.pagos || {}) }
     delete pagos[mes]
-    commitLocal(id, { ...old, pagos })
+    const detalle = (old.pagosDetalle || []).filter(p => p.mes !== mes)
+    commitLocal(id, { ...old, pagos, pagosDetalle: detalle })
     deleteDoc(doc(db, 'alumnos', id, 'pagos', mes)).catch(e => console.error('removePayment error:', e))
   }, [])
 
