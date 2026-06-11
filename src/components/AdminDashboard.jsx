@@ -25,8 +25,8 @@ function Barra({ label, value, max, color }) {
 export function AdminDashboard({ students, income }) {
   const [detalle, setDetalle] = useState(null)  // 'activos' | 'clases' | 'ingresos' | 'asistencia'
 
-  const activos  = students.filter(s => s.estado === "OK")
-  const vencidos = students.filter(s => s.estado === "VENCIDO")
+  const activos  = students.filter(s => s.estado === "OK" && !s.archivado)
+  const vencidos = students.filter(s => s.estado === "VENCIDO" && !s.archivado)
   const totalCl  = students.reduce((a, s) => a + s.realizadas, 0)
   const lastMes  = income[income.length - 1]
 
