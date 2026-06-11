@@ -5,9 +5,7 @@ import { B, LogoLR, PROFE_PIN } from "./constants"
 import { PinPad }         from "./components/PinPad"
 import { AdminMode }      from "./components/AdminMode"
 import { StudentMode }    from "./components/StudentMode"
-
-// ── Para cargar datos iniciales a Firestore (usar UNA sola vez, luego borrar) ─
-// import { seedFirestore } from "./seed"
+import { seedFirestore }  from "./seed"
 
 // ─── Pantallas de estado ──────────────────────────────────────────────────────
 function LoadingScreen() {
@@ -38,7 +36,6 @@ export default function App() {
   const [currentStudentId, setCurrentStudentId] = useState(null)
   const [loginError, setLoginError]             = useState("")
 
-  // Muestra pantalla de carga mientras Firestore responde
   if (loading) return <LoadingScreen/>
   if (error)   return <ErrorScreen error={error}/>
 
@@ -76,8 +73,7 @@ export default function App() {
         button:focus { outline: none; }
       `}</style>
 
-      {/* Botón de seed — descomentar solo en desarrollo, borrar después */}
-      {/* <button onClick={seedFirestore} style={{position:"fixed",bottom:12,right:12,zIndex:9999,padding:"8px 14px",background:"#16a34a",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:12}}>🌱 Seed DB</button> */}
+      <button onClick={seedFirestore} style={{position:"fixed",bottom:12,right:12,zIndex:9999,padding:"8px 14px",background:"#16a34a",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:12}}>🌱 Seed DB</button>
 
       {mode === null      && <PinPad     onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
       {mode === "admin"   && <AdminMode  students={students} payments={payments} onUpdate={updateStudent} onLogout={handleLogout}/>}
