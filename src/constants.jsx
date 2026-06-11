@@ -30,7 +30,7 @@ export function LogoLR({ size = 40, color = B.gold }) {
 // ─── Constantes ───────────────────────────────────────────────────────────────
 export const PROFE_PIN = "9999"
 // Email del profe (lo vas a crear en Firebase Auth). NO es secreto, podés editarlo.
-export const PROFE_EMAIL = "lucho@academialr.app"
+export const PROFE_EMAIL = "luchorolandoacademia@gmail.com"
 
 export const AT = {
   P: { bg:"#052e16", border:"#16a34a", text:"#4ade80", label:"Presente",      icon:"✓" },
