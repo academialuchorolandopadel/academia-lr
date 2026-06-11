@@ -29,6 +29,8 @@ export function LogoLR({ size = 40, color = B.gold }) {
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 export const PROFE_PIN = "9999"
+// Email del profe (lo vas a crear en Firebase Auth). NO es secreto, podés editarlo.
+export const PROFE_EMAIL = "lucho@academialr.app"
 
 export const AT = {
   P: { bg:"#052e16", border:"#16a34a", text:"#4ade80", label:"Presente",      icon:"✓" },
@@ -46,14 +48,19 @@ export const NOTE_STYLE = {
 
 export const DIAS_KEYS  = ["lunes","martes","miercoles","jueves","viernes","sabado"]
 export const DIAS_LABEL = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"]
-export const RECENT_DATES = ["07/04","09/04","14/04","16/04","22/04","24/04","28/04","30/04"]
 
+// Meses en orden de calendario (para pagos dinámicos)
+export const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                      "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+
+// Ingresos reales 2026 (desde planilla)
 export const INCOME_DATA = [
   { mes:"Ene", total:6150000,  profe:4305000,  cancha:1845000 },
   { mes:"Feb", total:12265000, profe:8585500,  cancha:3679500 },
   { mes:"Mar", total:13465000, profe:9425500,  cancha:4039500 },
   { mes:"Abr", total:14850000, profe:10395000, cancha:4455000 },
-  { mes:"May", total:930000,   profe:651000,   cancha:279000  },
+  { mes:"May", total:12515000, profe:8760500,  cancha:2878450 },
+  { mes:"Jun", total:7860000,  profe:5502000,  cancha:2358000 },
 ]
 
 export const PLANES = [
@@ -64,7 +71,7 @@ export const PLANES = [
 ]
 
 export const SCHEDULE_SLOTS = [
-  { hora:"9:00",  lunes:"",         martes:"Guada Rolon", miercoles:"",        jueves:"Guada Rolon", viernes:"Lucho R.", sabado:"" },
+  { hora:"9:00",  lunes:"",         martes:"Guada Rolon", miercoles:"",         jueves:"Guada Rolon", viernes:"Lucho R.", sabado:"" },
   { hora:"11:30", lunes:"",         martes:"",            miercoles:"Lucho R.", jueves:"",            viernes:"",         sabado:"" },
   { hora:"12:00", lunes:"Lucho R.", martes:"",            miercoles:"",         jueves:"",            viernes:"",         sabado:"" },
   { hora:"16:00", lunes:"",         martes:"",            miercoles:"",         jueves:"Lucho R.",    viernes:"",         sabado:"" },
@@ -87,6 +94,18 @@ export const avatarColor = (name) => {
   let h = 0
   for (let ch of name) h = (h * 31 + ch.charCodeAt(0)) & 0xffffffff
   return c[Math.abs(h) % c.length]
+}
+
+// Fecha de hoy en formato "DD/MM" (igual que la planilla)
+export const hoyDDMM = () => {
+  const d = new Date()
+  return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`
+}
+
+// Clave de orden cronológico para fechas "DD/MM"
+export const dateKey = (f) => {
+  const [d, m] = String(f).split("/").map(Number)
+  return (m || 0) * 100 + (d || 0)
 }
 
 export const getNotifications = (s) => {
