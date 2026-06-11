@@ -5,8 +5,8 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts"
 import {
-  B, AT, LogoLR, INCOME_DATA, PLANES, SCHEDULE_SLOTS, MESES,
-  DIAS_KEYS, DIAS_LABEL, hoyDDMM, dateKey,
+  B, AT, LogoLR, INCOME_DATA, PLANES, MESES,
+  DIAS_LABEL, hoyDDMM, dateKey,
   fmt, fmtFull, initials, avatarColor,
 } from "../constants"
 
@@ -15,7 +15,7 @@ const ADMIN_NAV = [
   { id:"alumnos",    label:"Alumnos",    emoji:"◉" },
   { id:"asistencia", label:"Asistencia", emoji:"◈" },
   { id:"pagos",      label:"Pagos",      emoji:"◇" },
-  { id:"horarios",   label:"Horarios",   emoji:"◻" },
+  { id:"agenda",     label:"Agenda",     emoji:"◻" },
   { id:"ingresos",   label:"Ingresos",   emoji:"△" },
   { id:"planes",     label:"Planes",     emoji:"❖" },
 ]
@@ -76,7 +76,6 @@ function AdminDashboard({ students, income }) {
   const totalCl  = students.reduce((a, s) => a + s.realizadas, 0)
   const lastMes  = income[income.length - 1]
 
-  // Última clase real: fecha con dateKey más alto entre toda la asistencia
   let ultimaFecha = null
   students.forEach(s => s.asistencia.forEach(a => {
     if (!ultimaFecha || dateKey(a.f) > dateKey(ultimaFecha)) ultimaFecha = a.f
@@ -85,7 +84,6 @@ function AdminDashboard({ students, income }) {
     ? students.filter(s => s.asistencia.some(a => a.f === ultimaFecha && a.m === "P"))
     : []
 
-  // Asistencia promedio real (P+R sobre clases con marca, todos los alumnos)
   let totMarcas = 0, totPres = 0
   students.forEach(s => s.asistencia.forEach(a => {
     if (a.m) { totMarcas++; if (a.m === "P" || a.m === "R") totPres++ }
@@ -219,7 +217,6 @@ function AdminAsistencia({ students, onUpdate }) {
   const hoy     = hoyDDMM()
   const activeS = students.filter(s => s.estado === "OK")
 
-  // Columnas = últimas 12 fechas reales presentes en la data + hoy
   const cols = useMemo(() => {
     const set = new Set([hoy])
     activeS.forEach(s => s.asistencia.forEach(a => { if (a.f) set.add(a.f) }))
@@ -275,7 +272,6 @@ function AdminAsistencia({ students, onUpdate }) {
               const pres = row.filter(c => c === "P" || c === "R").length
               const tot  = row.filter(c => c !== "").length
               const pct  = tot ? Math.round((pres/tot)*100) : null
-
               return (
                 <tr key={s.id} style={{borderBottom:si<activeS.length-1?`1px solid ${B.border}`:"none"}}
                   onMouseEnter={e=>e.currentTarget.style.background=B.bg}
@@ -321,9 +317,7 @@ function AdminAsistencia({ students, onUpdate }) {
 
 // ─── Pagos ────────────────────────────────────────────────────────────────────
 function AdminPagos({ payments }) {
-  // Meses presentes en los datos, en orden de calendario
   const cols = MESES.filter(m => payments.some(p => p.meses[m]))
-
   return (
     <div style={{padding:24}}>
       <div style={{marginBottom:16}}>
@@ -383,44 +377,126 @@ function AdminPagos({ payments }) {
   )
 }
 
-// ─── Horarios ─────────────────────────────────────────────────────────────────
-function AdminHorarios() {
+// ─── Agenda (editable) ────────────────────────────────────────────────────────
+const toMin = (h) => { const [hh, mm] = String(h).split(":").map(Number); return hh*60 + (mm||0) }
+
+function AdminAgenda({ schedule, students, onSave }) {
+  const [sel, setSel]           = useState(null)   // {dia, hora} celda en edición
+  const [nuevaHora, setNuevaHora] = useState("")
+
+  const horas = [...(schedule.horas || [])].sort((a,b) => toMin(a) - toMin(b))
+  const asign = schedule.asign || {}
+  const activos = students.filter(s => s.estado === "OK")
+  const keyOf = (dia, hora) => `${dia}|${hora}`
+
+  const toggle = (dia, hora, nombre) => {
+    const k = keyOf(dia, hora)
+    const cur = asign[k] || []
+    const next = cur.includes(nombre) ? cur.filter(n => n !== nombre) : [...cur, nombre]
+    const nextAsign = { ...asign }
+    if (next.length === 0) delete nextAsign[k]; else nextAsign[k] = next
+    onSave({ ...schedule, asign: nextAsign })
+  }
+
+  const addHora = () => {
+    const h = nuevaHora.trim()
+    if (!h || horas.includes(h)) { setNuevaHora(""); return }
+    onSave({ ...schedule, horas: [...horas, h] })
+    setNuevaHora("")
+  }
+
+  const removeHora = (h) => {
+    if (!window.confirm(`¿Eliminar el horario ${h} y sus asignaciones?`)) return
+    const nextAsign = { ...asign }
+    DIAS_LABEL.forEach(d => delete nextAsign[keyOf(d, h)])
+    onSave({ horas: horas.filter(x => x !== h), asign: nextAsign })
+  }
+
   return (
     <div style={{padding:24}}>
       <div style={{marginBottom:16}}>
-        <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Horarios</h1>
+        <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Agenda semanal</h1>
+        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Tocá una celda para asignar alumnos activos</p>
       </div>
+
+      {/* Agregar horario */}
+      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        <input value={nuevaHora} onChange={e=>setNuevaHora(e.target.value)}
+          onKeyDown={e=>{ if(e.key==="Enter") addHora() }}
+          placeholder="Nuevo horario (ej 17:30)"
+          style={{padding:"8px 12px",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none",width:180}}/>
+        <button onClick={addHora}
+          style={{padding:"8px 14px",borderRadius:8,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          + Agregar horario
+        </button>
+      </div>
+
       <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,overflow:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",minWidth:640}}>
           <thead>
             <tr style={{borderBottom:`1px solid ${B.border}`}}>
-              <th style={{padding:"10px 16px",textAlign:"left",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase",width:60}}>Hora</th>
+              <th style={{padding:"10px 12px",textAlign:"left",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase",width:70}}>Hora</th>
               {DIAS_LABEL.map(d => (
-                <th key={d} style={{padding:"10px 10px",textAlign:"center",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase"}}>{d}</th>
+                <th key={d} style={{padding:"10px 8px",textAlign:"center",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase"}}>{d}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {SCHEDULE_SLOTS.map((slot,i) => {
-              const hasAny = DIAS_KEYS.some(d => slot[d])
-              return (
-                <tr key={slot.hora} style={{borderBottom:i<SCHEDULE_SLOTS.length-1?`1px solid ${B.border}`:"none",background:hasAny?B.bg:"transparent"}}>
-                  <td style={{padding:"10px 16px",fontSize:11,color:B.textSub}}>{slot.hora}</td>
-                  {DIAS_KEYS.map(d => (
-                    <td key={d} style={{padding:"5px 5px",textAlign:"center"}}>
-                      {slot[d] && (
-                        <div style={{background:B.goldBg,border:`1px solid ${B.goldBorder}`,borderRadius:7,padding:"6px 7px"}}>
-                          <div style={{fontSize:10,fontWeight:600,color:B.gold}}>{slot[d]}</div>
-                        </div>
-                      )}
+            {horas.map((h, i) => (
+              <tr key={h} style={{borderBottom:i<horas.length-1?`1px solid ${B.border}`:"none"}}>
+                <td style={{padding:"8px 12px",fontSize:11,color:B.textSub,whiteSpace:"nowrap"}}>
+                  {h}
+                  <button onClick={()=>removeHora(h)} title="Eliminar horario"
+                    style={{marginLeft:6,background:"transparent",border:"none",color:B.textMuted,cursor:"pointer",fontSize:12}}>✕</button>
+                </td>
+                {DIAS_LABEL.map(d => {
+                  const lista = asign[keyOf(d,h)] || []
+                  return (
+                    <td key={d} onClick={()=>setSel({dia:d,hora:h})}
+                      style={{padding:"6px 6px",textAlign:"center",cursor:"pointer",verticalAlign:"top",minWidth:90}}>
+                      <div style={{display:"flex",flexDirection:"column",gap:3,minHeight:30}}>
+                        {lista.map(n => (
+                          <div key={n} style={{background:avatarColor(n),borderRadius:6,padding:"3px 6px",fontSize:10,color:"#fff",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{n}</div>
+                        ))}
+                        {lista.length===0 && <div style={{fontSize:14,color:B.textMuted}}>+</div>}
+                      </div>
                     </td>
-                  ))}
-                </tr>
-              )
-            })}
+                  )
+                })}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
+
+      {/* Modal selector de alumnos */}
+      {sel && (
+        <div onClick={()=>setSel(null)}
+          style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:20,width:"100%",maxWidth:360,maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
+            <div style={{fontSize:14,fontWeight:700,color:B.gold,marginBottom:2}}>{sel.dia} · {sel.hora}</div>
+            <div style={{fontSize:11,color:B.textSub,marginBottom:12}}>Tocá para agregar o quitar</div>
+            <div style={{overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
+              {activos.map(s => {
+                const on = (asign[keyOf(sel.dia,sel.hora)]||[]).includes(s.nombre)
+                return (
+                  <button key={s.id} onClick={()=>toggle(sel.dia,sel.hora,s.nombre)}
+                    style={{display:"flex",alignItems:"center",gap:9,padding:"9px 11px",borderRadius:9,border:`1px solid ${on?B.gold:B.border}`,background:on?B.goldBg:"transparent",cursor:"pointer",textAlign:"left"}}>
+                    <div style={{width:26,height:26,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff"}}>{s.iniciales}</div>
+                    <span style={{flex:1,fontSize:13,color:B.text}}>{s.nombre}</span>
+                    {on && <span style={{color:B.gold,fontWeight:700}}>✓</span>}
+                  </button>
+                )
+              })}
+            </div>
+            <button onClick={()=>setSel(null)}
+              style={{marginTop:14,padding:"10px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+              Listo
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -431,7 +507,6 @@ function AdminIngresos({ income }) {
   const totalProfe  = income.reduce((a,m) => a+m.profe, 0)
   const totalCancha = income.reduce((a,m) => a+m.cancha, 0)
   const pct = (v) => totalAnual ? Math.round(v/totalAnual*100) : 0
-
   return (
     <div style={{padding:24}}>
       <div style={{marginBottom:16}}>
@@ -507,9 +582,8 @@ function AdminPlanes() {
 }
 
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
-export function AdminMode({ students, payments, onUpdate, onLogout }) {
+export function AdminMode({ students, payments, schedule, onUpdate, onSaveSchedule, onLogout }) {
   const [view, setView] = useState("dashboard")
-
   return (
     <div style={{display:"flex",height:"100vh",background:B.bg,color:B.text,fontFamily:"'Segoe UI',system-ui,sans-serif",overflow:"hidden"}}>
       <AdminSidebar active={view} onNav={setView} onLogout={onLogout}/>
@@ -518,7 +592,7 @@ export function AdminMode({ students, payments, onUpdate, onLogout }) {
         {view==="alumnos"    && <AdminAlumnos    students={students}/>}
         {view==="asistencia" && <AdminAsistencia students={students} onUpdate={onUpdate}/>}
         {view==="pagos"      && <AdminPagos      payments={payments}/>}
-        {view==="horarios"   && <AdminHorarios/>}
+        {view==="agenda"     && <AdminAgenda     schedule={schedule} students={students} onSave={onSaveSchedule}/>}
         {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
         {view==="planes"     && <AdminPlanes/>}
       </main>
