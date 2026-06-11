@@ -5,10 +5,11 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts"
 import {
-  B, AT, LogoLR, INCOME_DATA, PLANES, MESES,
+  B, AT, LogoLR, INCOME_DATA, PLANES, MESES, StatCard,
   DIAS_LABEL, hoyDDMM, dateKey, diaCorto,
   fmt, fmtFull, initials, avatarColor,
 } from "../constants"
+import { AdminDashboard } from "./AdminDashboard"
 
 const ADMIN_NAV = [
   { id:"dashboard",  label:"Dashboard",  emoji:"▦" },
@@ -47,98 +48,6 @@ function AdminSidebar({ active, onNav, onLogout }) {
           style={{width:"100%",padding:"8px",borderRadius:8,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:12,cursor:"pointer"}}>
           Cerrar sesión
         </button>
-      </div>
-    </div>
-  )
-}
-
-// ─── StatCard ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, icon, color }) {
-  const c = color || B.gold
-  return (
-    <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:"16px 18px",flex:1,minWidth:120}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-        <div>
-          <div style={{fontSize:10,color:B.textSub,marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>{label}</div>
-          <div style={{fontSize:26,fontWeight:700,color:B.text,lineHeight:1}}>{value}</div>
-          {sub && <div style={{fontSize:11,color:c,marginTop:4}}>{sub}</div>}
-        </div>
-        {icon && <span style={{fontSize:20}}>{icon}</span>}
-      </div>
-    </div>
-  )
-}
-
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-function AdminDashboard({ students, income }) {
-  const active   = students.filter(s => s.estado === "OK").length
-  const vencidos = students.filter(s => s.estado === "VENCIDO").length
-  const totalCl  = students.reduce((a, s) => a + s.realizadas, 0)
-  const lastMes  = income[income.length - 1]
-
-  let ultimaFecha = null
-  students.forEach(s => s.asistencia.forEach(a => {
-    if (!ultimaFecha || dateKey(a.f) > dateKey(ultimaFecha)) ultimaFecha = a.f
-  }))
-  const hoyPres = ultimaFecha
-    ? students.filter(s => s.asistencia.some(a => a.f === ultimaFecha && a.m === "P"))
-    : []
-
-  let totMarcas = 0, totPres = 0
-  students.forEach(s => s.asistencia.forEach(a => {
-    if (a.m) { totMarcas++; if (a.m === "P" || a.m === "R") totPres++ }
-  }))
-  const promAsist = totMarcas ? Math.round((totPres / totMarcas) * 100) : 0
-
-  return (
-    <div style={{padding:24}}>
-      <div style={{marginBottom:20}}>
-        <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Dashboard</h1>
-        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Resumen general · 2026</p>
-      </div>
-      <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
-        <StatCard label="Activos"    value={active}             sub={`${vencidos} vencidos`} icon="✅"/>
-        <StatCard label="Clases"     value={totalCl}            sub="realizadas"             icon="🎾" color="#60a5fa"/>
-        <StatCard label="Último mes" value={fmt(lastMes.total)} sub={lastMes.mes}            icon="💰"/>
-        <StatCard label="Asistencia" value={`${promAsist}%`}    sub="promedio"               icon="📈"/>
-      </div>
-      <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-        <div style={{flex:"1 1 340px",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:20}}>
-          <div style={{fontSize:13,fontWeight:600,color:B.text,marginBottom:12}}>Ingresos 2026</div>
-          <ResponsiveContainer width="100%" height={170}>
-            <AreaChart data={income}>
-              <defs>
-                <linearGradient id="gP" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={B.gold}  stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor={B.gold}  stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="gC" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#60a5fa" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#60a5fa" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={B.border}/>
-              <XAxis dataKey="mes" tick={{fill:B.textSub,fontSize:10}} axisLine={false} tickLine={false}/>
-              <YAxis tickFormatter={v => fmt(v)} tick={{fill:B.textSub,fontSize:9}} axisLine={false} tickLine={false}/>
-              <Tooltip formatter={(v,n) => [fmtFull(v), n==="profe"?"Profe":"Cancha"]}
-                contentStyle={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:8,color:B.text}}/>
-              <Area type="monotone" dataKey="profe"  stroke={B.gold}  fill="url(#gP)" strokeWidth={2}/>
-              <Area type="monotone" dataKey="cancha" stroke="#60a5fa" fill="url(#gC)" strokeWidth={2}/>
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        <div style={{flex:"1 1 160px",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:20}}>
-          <div style={{fontSize:13,fontWeight:600,color:B.text,marginBottom:4}}>Última clase</div>
-          <div style={{fontSize:11,color:B.textSub,marginBottom:12}}>{ultimaFecha || "—"} · {hoyPres.length} presentes</div>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {hoyPres.map(s => (
-              <div key={s.id} style={{display:"flex",alignItems:"center",gap:7}}>
-                <div style={{width:24,height:24,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:B.gold,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
-                <span style={{fontSize:11,color:B.text}}>{s.nombre}</span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   )
@@ -227,6 +136,18 @@ function Ficha({ s, onEditar, onBaja, onCerrar }) {
         </div>
       )}
 
+      <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+        <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Historial de asistencias</div>
+        {s.asistencia.length===0 && <div style={{fontSize:12,color:B.textMuted}}>Sin registros aún.</div>}
+        <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:180,overflowY:"auto"}}>
+          {[...s.asistencia].reverse().map(({f,m},i)=>{const st=AT[m];return(
+            <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",borderRadius:7,background:st?`${st.bg}88`:B.bgCard,border:`1px solid ${st?st.border+"55":B.border}`}}>
+              <span style={{fontSize:12,color:B.text}}>{diaCorto(f)} {f}</span>
+              <span style={{fontSize:11,color:st?st.text:B.textMuted,fontWeight:600}}>{st?st.label:"—"}</span>
+            </div>
+          )})}
+        </div>
+      </div>
       <button onClick={onEditar} style={{width:"100%",padding:"11px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:"pointer"}}>Editar</button>
       <button onClick={onBaja} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.dangerBorder}`,background:B.dangerBg,color:"#f87171",fontSize:13,fontWeight:600,cursor:"pointer"}}>Dar de baja</button>
       <button onClick={onCerrar} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:13,cursor:"pointer"}}>Cerrar</button>
@@ -359,14 +280,24 @@ function AdminAlumnos({ students, onAdd, onUpdate, onDelete }) {
 
 // ─── Asistencia ───────────────────────────────────────────────────────────────
 function AdminAsistencia({ students, onUpdate }) {
+  const [wk, setWk] = useState(0)            // 0 = semana actual
   const hoy     = hoyDDMM()
   const activeS = students.filter(s => s.estado === "OK")
 
+  // Semana Lun–Sáb según el offset
   const cols = useMemo(() => {
-    const set = new Set([hoy])
-    activeS.forEach(s => s.asistencia.forEach(a => { if (a.f) set.add(a.f) }))
-    return [...set].sort((a, b) => dateKey(a) - dateKey(b)).slice(-12)
-  }, [activeS, hoy])
+    const dias = ["Lun","Mar","Mié","Jue","Vie","Sáb"]
+    const base = new Date()
+    const dow  = base.getDay()                 // 0 Dom .. 6 Sáb
+    const toMon = (dow === 0 ? -6 : 1 - dow)
+    const monday = new Date(base)
+    monday.setDate(base.getDate() + toMon + wk * 7)
+    return dias.map((dia, i) => {
+      const d = new Date(monday); d.setDate(monday.getDate() + i)
+      const f = `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`
+      return { f, dia }
+    })
+  }, [wk])
 
   const setMark = (s, fecha, marca) => onUpdate(s.id, st => {
     const has = st.asistencia.find(a => a.f === fecha)
@@ -380,35 +311,59 @@ function AdminAsistencia({ students, onUpdate }) {
 
   const markAll = (marca) => activeS.forEach(s => setMark(s, hoy, marca))
 
+  // % de asistencia general del alumno (sobre toda su historia)
+  const overallPct = (s) => {
+    const tot  = s.asistencia.filter(a => a.m).length
+    const pres = s.asistencia.filter(a => a.m === "P" || a.m === "R").length
+    return tot ? Math.round((pres / tot) * 100) : null
+  }
+
   return (
     <div style={{padding:24}}>
-      <div style={{marginBottom:16}}>
+      <div style={{marginBottom:14}}>
         <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Asistencia</h1>
-        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Clic en celda para editar · ★ = hoy ({hoy})</p>
+        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Lunes a sábado · clic en celda para marcar</p>
       </div>
-      <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"12px 16px",marginBottom:12}}>
-        <div style={{fontSize:11,color:B.textSub,marginBottom:8}}>Clase de hoy ({hoy}) — marcar todos como:</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-          {["P","I","X","R"].map(k => {
-            const s = AT[k]
-            return (
-              <button key={k} onClick={() => markAll(k)}
-                style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${s.border}`,background:s.bg,color:s.text,fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                {k} — {s.label}
-              </button>
-            )
-          })}
+
+      {/* Navegación de semanas */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+        <button onClick={()=>setWk(wk-1)}
+          style={{padding:"7px 12px",borderRadius:8,border:`1px solid ${B.border}`,background:B.bgCard,color:B.text,fontSize:13,cursor:"pointer"}}>◀ Semana</button>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:12,color:B.textSub}}>Semana del {cols[0].f} al {cols[5].f}</span>
+          {wk!==0 && <button onClick={()=>setWk(0)} style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${B.goldBorder}`,background:B.goldBg,color:B.gold,fontSize:11,cursor:"pointer",fontWeight:600}}>Hoy</button>}
         </div>
+        <button onClick={()=>setWk(wk+1)}
+          style={{padding:"7px 12px",borderRadius:8,border:`1px solid ${B.border}`,background:B.bgCard,color:B.text,fontSize:13,cursor:"pointer"}}>Semana ▶</button>
       </div>
+
+      {/* Marcar todos (solo en la semana actual) */}
+      {wk===0 && (
+        <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"12px 16px",marginBottom:12}}>
+          <div style={{fontSize:11,color:B.textSub,marginBottom:8}}>Clase de hoy ({hoy}) — marcar todos como:</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {["P","I","X","R"].map(k => {
+              const st = AT[k]
+              return (
+                <button key={k} onClick={() => markAll(k)}
+                  style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${st.border}`,background:st.bg,color:st.text,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                  {k} — {st.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,overflow:"auto"}}>
         <table style={{borderCollapse:"collapse",minWidth:"100%"}}>
           <thead>
             <tr style={{borderBottom:`1px solid ${B.border}`}}>
               <th style={{padding:"10px 16px",textAlign:"left",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase",minWidth:140}}>Alumno</th>
-              {cols.map(d => (
-                <th key={d} style={{padding:"8px 10px",textAlign:"center",fontSize:10,color:d===hoy?B.gold:B.textSub,fontWeight:600,whiteSpace:"nowrap"}}>
-                  <div style={{fontSize:9,opacity:0.85,fontWeight:700}}>{diaCorto(d)}</div>
-                  <div>{d}{d===hoy?" ★":""}</div>
+              {cols.map(c => (
+                <th key={c.f} style={{padding:"8px 10px",textAlign:"center",fontSize:10,color:c.f===hoy?B.gold:B.textSub,fontWeight:600,whiteSpace:"nowrap"}}>
+                  <div style={{fontSize:10,fontWeight:700}}>{c.dia}</div>
+                  <div style={{fontSize:9,opacity:0.85}}>{c.f}{c.f===hoy?" ★":""}</div>
                 </th>
               ))}
               <th style={{padding:"10px 10px",textAlign:"center",fontSize:10,color:B.textSub,fontWeight:600}}>%</th>
@@ -416,10 +371,7 @@ function AdminAsistencia({ students, onUpdate }) {
           </thead>
           <tbody>
             {activeS.map((s, si) => {
-              const row  = cols.map(d => s.asistencia.find(a => a.f === d)?.m || "")
-              const pres = row.filter(c => c === "P" || c === "R").length
-              const tot  = row.filter(c => c !== "").length
-              const pct  = tot ? Math.round((pres/tot)*100) : null
+              const pct = overallPct(s)
               return (
                 <tr key={s.id} style={{borderBottom:si<activeS.length-1?`1px solid ${B.border}`:"none"}}
                   onMouseEnter={e=>e.currentTarget.style.background=B.bg}
@@ -430,17 +382,17 @@ function AdminAsistencia({ students, onUpdate }) {
                       <span style={{fontSize:11,color:B.text,whiteSpace:"nowrap"}}>{s.nombre}</span>
                     </div>
                   </td>
-                  {cols.map((d, di) => {
-                    const marca = row[di]
+                  {cols.map((c) => {
+                    const marca = s.asistencia.find(a => a.f === c.f)?.m || ""
                     const st    = AT[marca]
-                    const isHoy = d === hoy
+                    const isHoy = c.f === hoy
                     return (
-                      <td key={di} style={{padding:"4px 5px",textAlign:"center"}}>
+                      <td key={c.f} style={{padding:"4px 5px",textAlign:"center"}}>
                         <button
                           onClick={() => {
                             const cycle = ["","P","I","X","R"]
                             const next  = cycle[(cycle.indexOf(marca)+1) % cycle.length]
-                            setMark(s, d, next)
+                            setMark(s, c.f, next)
                           }}
                           style={{width:30,height:26,borderRadius:5,border:`1px solid ${st?st.border:isHoy?B.goldBorder:B.border}`,background:st?st.bg:isHoy?B.goldBg:"transparent",color:st?st.text:isHoy?B.gold:B.textMuted,fontSize:10,fontWeight:700,cursor:"pointer"}}>
                           {marca || "·"}
@@ -466,11 +418,13 @@ function AdminAsistencia({ students, onUpdate }) {
 // ─── Pagos ────────────────────────────────────────────────────────────────────
 function AdminPagos({ students, onAddPayment, onRemovePayment }) {
   const mesActual = MESES[new Date().getMonth()]
+  const hoyISO = (() => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` })()
   const [open, setOpen]     = useState(false)
   const [sid, setSid]       = useState("")
   const [mes, setMes]       = useState(mesActual)
   const [monto, setMonto]   = useState("")
   const [clases, setClases] = useState("")
+  const [fechaPago, setFechaPago] = useState(hoyISO)
 
   const conPagos = students.filter(s => Object.keys(s.pagos || {}).length > 0)
   const cols = MESES.filter(m => students.some(s => s.pagos && s.pagos[m]))
@@ -481,12 +435,13 @@ function AdminPagos({ students, onAddPayment, onRemovePayment }) {
     setMes(mesSel)
     setMonto(st && st.pagos && st.pagos[mesSel] ? String(st.pagos[mesSel]) : "")
     setClases("")
+    setFechaPago(hoyISO)
     setOpen(true)
   }
 
   const guardar = () => {
     if (!sid || !mes || !(Number(monto) > 0)) return
-    onAddPayment(sid, mes, Number(monto), Number(clases) || 0)
+    onAddPayment(sid, mes, Number(monto), Number(clases) || 0, fechaPago)
     setOpen(false)
   }
 
@@ -589,6 +544,10 @@ function AdminPagos({ students, onAddPayment, onRemovePayment }) {
 
             <label style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Sumar clases al paquete (opcional)</label>
             <input type="number" inputMode="numeric" value={clases} onChange={e => setClases(e.target.value)} placeholder="0"
+              style={{width:"100%",margin:"5px 0 12px",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14,outline:"none"}}/>
+
+            <label style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Fecha del pago</label>
+            <input type="date" value={fechaPago} onChange={e => setFechaPago(e.target.value)}
               style={{width:"100%",margin:"5px 0 16px",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14,outline:"none"}}/>
 
             <button onClick={guardar}
