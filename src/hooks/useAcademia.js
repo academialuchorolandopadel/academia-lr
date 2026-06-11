@@ -7,7 +7,7 @@
 //   /config/horarios                ← { horas: [...], asign: { "Lunes|9:00": [nombres] } }
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL } from '../constants'
 
@@ -141,10 +141,56 @@ export function useAcademia() {
     deleteDoc(doc(db, 'alumnos', id, 'pagos', mes)).catch(e => console.error('removePayment error:', e))
   }, [])
 
+  // Alta de alumno nuevo. Devuelve { ok, msg }.
+  const addStudent = useCallback(async (data) => {
+    const nombre = (data.nombre || '').trim()
+    if (!nombre) return { ok: false, msg: 'Falta el nombre' }
+    const pin = (data.pin || '').trim()
+    if (!/^\d{4}$/.test(pin)) return { ok: false, msg: 'El PIN debe ser de 4 dígitos' }
+    if (pin === '9999') return { ok: false, msg: 'El PIN 9999 está reservado para el profe' }
+    if (studentsRef.current.some(s => s.pin === pin)) return { ok: false, msg: 'Ese PIN ya está en uso' }
+    const abonadas = Number(data.abonadas) || 0
+    const base = {
+      nombre, pin,
+      iniciales: nombre.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase(),
+      estado: computeEstado(abonadas, 0),
+      plan: data.plan || '8 Clases',
+      abonadas, realizadas: 0,
+      email: data.email || '', tel: data.tel || '',
+    }
+    try {
+      const ref = await addDoc(collection(db, 'alumnos'), base)
+      const nuevo = { ...base, id: ref.id, asistencia: [], pagos: {} }
+      const next = [...studentsRef.current, nuevo].sort((a,b) => a.nombre.localeCompare(b.nombre))
+      studentsRef.current = next
+      setStudents(next)
+      return { ok: true }
+    } catch (e) {
+      console.error('addStudent error:', e)
+      return { ok: false, msg: 'No se pudo guardar (¿estás logueado como profe?)' }
+    }
+  }, [])
+
+  // Baja de alumno: borra el doc y sus subcolecciones.
+  const deleteStudent = useCallback(async (id) => {
+    const next = studentsRef.current.filter(s => s.id !== id)
+    studentsRef.current = next
+    setStudents(next)
+    try {
+      const asis = await getDocs(collection(db, 'alumnos', id, 'asistencia'))
+      await Promise.all(asis.docs.map(d => deleteDoc(d.ref)))
+      const pag = await getDocs(collection(db, 'alumnos', id, 'pagos'))
+      await Promise.all(pag.docs.map(d => deleteDoc(d.ref)))
+      await deleteDoc(doc(db, 'alumnos', id))
+    } catch (e) {
+      console.error('deleteStudent error:', e)
+    }
+  }, [])
+
   const saveSchedule = useCallback((next) => {
     setSchedule(next)
     setDoc(doc(db, 'config', 'horarios'), next).catch(err => console.error('Schedule write error:', err))
   }, [])
 
-  return { students, schedule, loading, error, updateStudent, addPayment, removePayment, saveSchedule }
+  return { students, schedule, loading, error, updateStudent, addStudent, deleteStudent, addPayment, removePayment, saveSchedule }
 }
