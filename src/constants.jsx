@@ -30,7 +30,7 @@ export function LogoLR({ size = 40, color = B.gold }) {
 // ─── Constantes ───────────────────────────────────────────────────────────────
 export const PROFE_PIN = "9999"
 // Email del profe (lo vas a crear en Firebase Auth). NO es secreto, podés editarlo.
-export const PROFE_EMAIL = "luchorolandoacademia@gmail.com"
+export const PROFE_EMAIL = "lucho@academialr.app"
 
 export const AT = {
   P: { bg:"#052e16", border:"#16a34a", text:"#4ade80", label:"Presente",      icon:"✓" },
@@ -100,6 +100,13 @@ export const avatarColor = (name) => {
 export const hoyDDMM = () => {
   const d = new Date()
   return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`
+}
+
+// Día de la semana corto a partir de "DD/MM" (datos 2026)
+export const diaCorto = (f) => {
+  const [d, m] = String(f).split("/").map(Number)
+  const dias = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"]
+  return dias[new Date(2026, (m||1)-1, d||1).getDay()]
 }
 
 // Clave de orden cronológico para fechas "DD/MM"
