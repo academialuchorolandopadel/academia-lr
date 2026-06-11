@@ -1,5 +1,5 @@
 // src/components/AdminMode.jsx
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -86,7 +86,7 @@ function AlumnoForm({ inicial, titulo, onGuardar, onCancelar, error }) {
   )
 }
 
-function Ficha({ s, onEditar, onBaja, onCerrar }) {
+function Ficha({ s, onEditar, onArchivar, onBaja, onCerrar }) {
   const disp = s.abonadas - s.realizadas
   const cuenta = (m) => s.asistencia.filter(a => a.m === m).length
   const pagos = Object.entries(s.pagos || {})
@@ -149,6 +149,7 @@ function Ficha({ s, onEditar, onBaja, onCerrar }) {
         </div>
       </div>
       <button onClick={onEditar} style={{width:"100%",padding:"11px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:"pointer"}}>Editar</button>
+      <button onClick={onArchivar} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:B.bgCard,color:B.textSub,fontSize:13,fontWeight:600,cursor:"pointer"}}>{s.archivado ? "Desarchivar (volvió)" : "Archivar (dejó de venir)"}</button>
       <button onClick={onBaja} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.dangerBorder}`,background:B.dangerBg,color:"#f87171",fontSize:13,fontWeight:600,cursor:"pointer"}}>Dar de baja</button>
       <button onClick={onCerrar} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:13,cursor:"pointer"}}>Cerrar</button>
     </div>
@@ -157,16 +158,23 @@ function Ficha({ s, onEditar, onBaja, onCerrar }) {
 
 function AdminAlumnos({ students, onAdd, onUpdate, onDelete }) {
   const [search, setSearch]   = useState("")
-  const [filter, setFilter]   = useState("TODOS")
+  const [filter, setFilter]   = useState("Vigentes")
   const [selId, setSelId]     = useState(null)
   const [editing, setEditing] = useState(false)
   const [adding, setAdding]   = useState(false)
   const [err, setErr]         = useState("")
 
-  const filtered = useMemo(() => students.filter(s =>
-    s.nombre.toLowerCase().includes(search.toLowerCase()) &&
-    (filter === "TODOS" || s.estado === filter)
-  ), [students, search, filter])
+  const filtered = useMemo(() => students.filter(s => {
+    if (!s.nombre.toLowerCase().includes(search.toLowerCase())) return false
+    if (filter === "Archivados") return s.archivado
+    if (s.archivado) return false
+    if (filter === "OK")      return s.estado === "OK"
+    if (filter === "Vencido") return s.estado === "VENCIDO"
+    return true // Vigentes
+  }), [students, search, filter])
+
+  const nVig = students.filter(s => !s.archivado).length
+  const nArch = students.filter(s => s.archivado).length
 
   const sel = students.find(s => s.id === selId) || null
 
@@ -187,6 +195,9 @@ function AdminAlumnos({ students, onAdd, onUpdate, onDelete }) {
     }))
     setEditing(false)
   }
+  const archivar = () => {
+    if (sel) { onUpdate(sel.id, st => ({ ...st, archivado: !st.archivado })); cerrarTodo() }
+  }
   const darDeBaja = () => {
     if (sel && window.confirm(`¿Dar de baja a ${sel.nombre}? Se borran todos sus datos y no se puede deshacer.`)) {
       onDelete(sel.id); cerrarTodo()
@@ -198,7 +209,7 @@ function AdminAlumnos({ students, onAdd, onUpdate, onDelete }) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
         <div>
           <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Alumnos</h1>
-          <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>{students.length} registrados · tocá uno para ver su ficha</p>
+          <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>{nVig} vigentes · {nArch} archivados · tocá uno para ver su ficha</p>
         </div>
         <button onClick={()=>{ setAdding(true); setErr("") }}
           style={{padding:"9px 16px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
@@ -208,7 +219,7 @@ function AdminAlumnos({ students, onAdd, onUpdate, onDelete }) {
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Buscar..."
           style={{flex:"1 1 150px",padding:"8px 12px",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none"}}/>
-        {["TODOS","OK","VENCIDO"].map(f => (
+        {["Vigentes","OK","Vencido","Archivados"].map(f => (
           <button key={f} onClick={() => setFilter(f)}
             style={{padding:"7px 12px",borderRadius:8,border:`1px solid ${filter===f?B.gold:B.border}`,background:filter===f?B.goldBg:B.bgCard,color:filter===f?B.gold:B.textSub,cursor:"pointer",fontSize:12,fontWeight:filter===f?600:400}}>
             {f}
@@ -269,7 +280,7 @@ function AdminAlumnos({ students, onAdd, onUpdate, onDelete }) {
                 onGuardar={guardarEdit} onCancelar={()=>setEditing(false)}/>
             )}
             {sel && !editing && (
-              <Ficha s={sel} onEditar={()=>setEditing(true)} onBaja={darDeBaja} onCerrar={cerrarTodo}/>
+              <Ficha s={sel} onEditar={()=>setEditing(true)} onArchivar={archivar} onBaja={darDeBaja} onCerrar={cerrarTodo}/>
             )}
           </div>
         </div>
@@ -282,7 +293,7 @@ function AdminAlumnos({ students, onAdd, onUpdate, onDelete }) {
 function AdminAsistencia({ students, onUpdate }) {
   const [wk, setWk] = useState(0)            // 0 = semana actual
   const hoy     = hoyDDMM()
-  const activeS = students.filter(s => s.estado === "OK")
+  const activeS = students.filter(s => s.estado === "OK" && !s.archivado)
 
   // Semana Lun–Sáb según el offset
   const cols = useMemo(() => {
@@ -580,7 +591,7 @@ function AdminAgenda({ schedule, students, onSave }) {
 
   const horas = [...(schedule.horas || [])].sort((a,b) => toMin(a) - toMin(b))
   const asign = schedule.asign || {}
-  const activos = students.filter(s => s.estado === "OK")
+  const activos = students.filter(s => s.estado === "OK" && !s.archivado)
   const keyOf = (dia, hora) => `${dia}|${hora}`
 
   const toggle = (dia, hora, nombre) => {
@@ -775,21 +786,81 @@ function AdminPlanes() {
   )
 }
 
+// ─── Detección de pantalla chica ─────────────────────────────────────────────
+function useIsMobile(bp = 720) {
+  const [m, setM] = useState(typeof window !== "undefined" && window.innerWidth < bp)
+  useEffect(() => {
+    const on = () => setM(window.innerWidth < bp)
+    window.addEventListener("resize", on)
+    return () => window.removeEventListener("resize", on)
+  }, [bp])
+  return m
+}
+
+// ─── Barra superior (celular) ─────────────────────────────────────────────────
+function AdminTopNav({ active, onNav, onLogout }) {
+  return (
+    <div style={{background:B.bgDark,borderBottom:`1px solid ${B.border}`,position:"sticky",top:0,zIndex:100}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:9}}>
+          <LogoLR size={28}/>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:B.gold,letterSpacing:2,textTransform:"uppercase"}}>Academia LR</div>
+            <div style={{fontSize:9,color:B.textSub}}>Modo Profe</div>
+          </div>
+        </div>
+        <button onClick={onLogout}
+          style={{background:"transparent",border:`1px solid ${B.border}`,borderRadius:8,color:B.textSub,fontSize:12,padding:"5px 10px",cursor:"pointer"}}>
+          Salir
+        </button>
+      </div>
+      <div style={{display:"flex",overflowX:"auto",padding:"0 8px",gap:2}}>
+        {ADMIN_NAV.map(({ id, label, emoji }) => {
+          const on = active === id
+          return (
+            <button key={id} onClick={() => onNav(id)}
+              style={{padding:"9px 12px",background:"transparent",border:"none",borderBottom:`2px solid ${on?B.gold:"transparent"}`,color:on?B.gold:B.textSub,fontSize:13,fontWeight:on?600:400,whiteSpace:"nowrap",cursor:"pointer",display:"flex",alignItems:"center",gap:5,fontFamily:"'Segoe UI',sans-serif"}}>
+              <span>{emoji}</span>{label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
 export function AdminMode({ students, schedule, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onAddPayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
+  const isMobile = useIsMobile()
+
+  const renderView = () => (
+    <>
+      {view==="dashboard"  && <AdminDashboard  students={students} income={INCOME_DATA}/>}
+      {view==="alumnos"    && <AdminAlumnos    students={students} onAdd={onAddStudent} onUpdate={onUpdate} onDelete={onDeleteStudent}/>}
+      {view==="asistencia" && <AdminAsistencia students={students} onUpdate={onUpdate}/>}
+      {view==="pagos"      && <AdminPagos      students={students} onAddPayment={onAddPayment} onRemovePayment={onRemovePayment}/>}
+      {view==="agenda"     && <AdminAgenda     schedule={schedule} students={students} onSave={onSaveSchedule}/>}
+      {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
+      {view==="planes"     && <AdminPlanes/>}
+    </>
+  )
+
+  // Celular: pestañas arriba, contenido a lo ancho debajo
+  if (isMobile) {
+    return (
+      <div style={{minHeight:"100vh",background:B.bg,color:B.text,fontFamily:"'Segoe UI',system-ui,sans-serif"}}>
+        <AdminTopNav active={view} onNav={setView} onLogout={onLogout}/>
+        <main>{renderView()}</main>
+      </div>
+    )
+  }
+
+  // Tablet / escritorio: barra lateral
   return (
     <div style={{display:"flex",height:"100vh",background:B.bg,color:B.text,fontFamily:"'Segoe UI',system-ui,sans-serif",overflow:"hidden"}}>
       <AdminSidebar active={view} onNav={setView} onLogout={onLogout}/>
-      <main style={{flex:1,overflowY:"auto"}}>
-        {view==="dashboard"  && <AdminDashboard  students={students} income={INCOME_DATA}/>}
-        {view==="alumnos"    && <AdminAlumnos    students={students} onAdd={onAddStudent} onUpdate={onUpdate} onDelete={onDeleteStudent}/>}
-        {view==="asistencia" && <AdminAsistencia students={students} onUpdate={onUpdate}/>}
-        {view==="pagos"      && <AdminPagos      students={students} onAddPayment={onAddPayment} onRemovePayment={onRemovePayment}/>}
-        {view==="agenda"     && <AdminAgenda     schedule={schedule} students={students} onSave={onSaveSchedule}/>}
-        {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
-        {view==="planes"     && <AdminPlanes/>}
-      </main>
+      <main style={{flex:1,overflowY:"auto"}}>{renderView()}</main>
     </div>
   )
 }
