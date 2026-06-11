@@ -84,7 +84,7 @@ function ProfeAuth({ onSuccess, onCancel }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { students, payments, loading, error, updateStudent } = useAcademia()
+  const { students, payments, schedule, loading, error, updateStudent, saveSchedule } = useAcademia()
   const [mode, setMode]                         = useState(null) // null | profe | admin | student
   const [currentStudentId, setCurrentStudentId] = useState(null)
   const [loginError, setLoginError]             = useState("")
@@ -132,7 +132,7 @@ export default function App() {
 
       {mode === null      && <PinPad     onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
       {mode === "profe"   && <ProfeAuth  onSuccess={() => setMode("admin")} onCancel={() => setMode(null)}/>}
-      {mode === "admin"   && <AdminMode  students={students} payments={payments} onUpdate={updateStudent} onLogout={handleLogout}/>}
+      {mode === "admin"   && <AdminMode  students={students} payments={payments} schedule={schedule} onUpdate={updateStudent} onSaveSchedule={saveSchedule} onLogout={handleLogout}/>}
       {mode === "student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout}/>}
     </>
   )
