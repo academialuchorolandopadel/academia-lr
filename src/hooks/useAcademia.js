@@ -19,6 +19,10 @@ const dateKey = (f) => {
 const countRealizadas = (asistencia) =>
   asistencia.filter(a => a.m === 'P' || a.m === 'R').length
 
+// Estado automático: si le quedan clases disponibles → OK, si no → VENCIDO
+const computeEstado = (abonadas, realizadas) =>
+  ((abonadas || 0) - (realizadas || 0)) > 0 ? 'OK' : 'VENCIDO'
+
 function defaultSchedule() {
   const horas = SCHEDULE_SLOTS.map(s => s.hora)
   const asign = {}
@@ -41,6 +45,7 @@ async function fetchAlumnoFull(docSnap) {
   base.pagos = {}
   pagosSnap.docs.forEach(d => { base.pagos[d.data().mes] = d.data().monto })
   base.realizadas = countRealizadas(base.asistencia)
+  base.estado = computeEstado(base.abonadas, base.realizadas)
   return base
 }
 
@@ -104,6 +109,7 @@ export function useAcademia() {
     if (!old) return
     const updated = updater(old)
     updated.realizadas = countRealizadas(updated.asistencia)
+    updated.estado = computeEstado(updated.abonadas, updated.realizadas)
     commitLocal(id, updated)
     syncToFirestore(old, updated).catch(err => console.error('Firestore write error:', err))
   }, [])
@@ -115,12 +121,13 @@ export function useAcademia() {
     const extra = Number(addClases) || 0
     const pagos = { ...(old.pagos || {}), [mes]: Number(monto) }
     const abonadas = old.abonadas + extra
-    const updated = { ...old, pagos, abonadas }
+    const estado = computeEstado(abonadas, old.realizadas)
+    const updated = { ...old, pagos, abonadas, estado }
     commitLocal(id, updated)
     ;(async () => {
       try {
         await setDoc(doc(db, 'alumnos', id, 'pagos', mes), { mes, monto: Number(monto) })
-        if (extra) await updateDoc(doc(db, 'alumnos', id), { abonadas })
+        if (extra) await updateDoc(doc(db, 'alumnos', id), { abonadas, estado })
       } catch (e) { console.error('addPayment error:', e) }
     })()
   }, [])
