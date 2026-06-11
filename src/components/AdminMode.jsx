@@ -316,14 +316,55 @@ function AdminAsistencia({ students, onUpdate }) {
 }
 
 // ─── Pagos ────────────────────────────────────────────────────────────────────
-function AdminPagos({ payments }) {
-  const cols = MESES.filter(m => payments.some(p => p.meses[m]))
+function AdminPagos({ students, onAddPayment, onRemovePayment }) {
+  const mesActual = MESES[new Date().getMonth()]
+  const [open, setOpen]     = useState(false)
+  const [sid, setSid]       = useState("")
+  const [mes, setMes]       = useState(mesActual)
+  const [monto, setMonto]   = useState("")
+  const [clases, setClases] = useState("")
+
+  const conPagos = students.filter(s => Object.keys(s.pagos || {}).length > 0)
+  const cols = MESES.filter(m => students.some(s => s.pagos && s.pagos[m]))
+
+  const abrir = (studentId = "", mesSel = mesActual) => {
+    const st = students.find(s => s.id === studentId)
+    setSid(studentId)
+    setMes(mesSel)
+    setMonto(st && st.pagos && st.pagos[mesSel] ? String(st.pagos[mesSel]) : "")
+    setClases("")
+    setOpen(true)
+  }
+
+  const guardar = () => {
+    if (!sid || !mes || !(Number(monto) > 0)) return
+    onAddPayment(sid, mes, Number(monto), Number(clases) || 0)
+    setOpen(false)
+  }
+
+  const sel = students.find(s => s.id === sid)
+  const yaExiste = sel && sel.pagos && sel.pagos[mes]
+
+  const quitar = () => {
+    if (sid && mes && window.confirm(`¿Quitar el pago de ${mes} de ${sel.nombre}?`)) {
+      onRemovePayment(sid, mes)
+      setOpen(false)
+    }
+  }
+
   return (
     <div style={{padding:24}}>
-      <div style={{marginBottom:16}}>
-        <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Pagos</h1>
-        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Historial 2026</p>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+        <div>
+          <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Pagos</h1>
+          <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Tocá un monto para editarlo · 2026</p>
+        </div>
+        <button onClick={() => abrir()}
+          style={{padding:"9px 16px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          + Registrar pago
+        </button>
       </div>
+
       <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,overflow:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead>
@@ -334,22 +375,21 @@ function AdminPagos({ payments }) {
             </tr>
           </thead>
           <tbody>
-            {payments.map((p,i) => {
-              const total = cols.reduce((a,m) => a+(p.meses[m]||0), 0)
+            {conPagos.map((s,i) => {
+              const total = cols.reduce((a,m) => a + ((s.pagos && s.pagos[m]) || 0), 0)
               return (
-                <tr key={p.alumno} style={{borderBottom:i<payments.length-1?`1px solid ${B.border}`:"none"}}
-                  onMouseEnter={e=>e.currentTarget.style.background=B.bg}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <tr key={s.id} style={{borderBottom:i<conPagos.length-1?`1px solid ${B.border}`:"none"}}>
                   <td style={{padding:"11px 16px"}}>
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <div style={{width:26,height:26,background:avatarColor(p.alumno),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:B.gold,border:`1px solid ${B.border}`}}>{initials(p.alumno)}</div>
-                      <span style={{fontSize:12,color:B.text}}>{p.alumno}</span>
+                      <div style={{width:26,height:26,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:B.gold,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
+                      <span style={{fontSize:12,color:B.text}}>{s.nombre}</span>
                     </div>
                   </td>
                   {cols.map(m => (
-                    <td key={m} style={{padding:"11px 12px",textAlign:"right"}}>
-                      {p.meses[m] ? <span style={{fontSize:12,color:B.gold,fontWeight:500}}>{fmt(p.meses[m])}</span>
-                                  : <span style={{fontSize:12,color:B.textMuted}}>—</span>}
+                    <td key={m} onClick={() => abrir(s.id, m)} style={{padding:"11px 12px",textAlign:"right",cursor:"pointer"}}>
+                      {s.pagos && s.pagos[m]
+                        ? <span style={{fontSize:12,color:B.gold,fontWeight:500}}>{fmt(s.pagos[m])}</span>
+                        : <span style={{fontSize:12,color:B.textMuted}}>—</span>}
                     </td>
                   ))}
                   <td style={{padding:"11px 12px",textAlign:"right"}}>
@@ -363,16 +403,63 @@ function AdminPagos({ payments }) {
             <tr style={{borderTop:`1px solid ${B.border}`,background:B.bg}}>
               <td style={{padding:"10px 16px",fontSize:11,fontWeight:700,color:B.textSub}}>TOTALES</td>
               {cols.map(m => {
-                const t = payments.reduce((a,p) => a+(p.meses[m]||0), 0)
+                const t = conPagos.reduce((a,s) => a + ((s.pagos && s.pagos[m]) || 0), 0)
                 return <td key={m} style={{padding:"10px 12px",textAlign:"right",fontSize:11,fontWeight:700,color:B.gold}}>{t ? fmt(t) : "—"}</td>
               })}
               <td style={{padding:"10px 12px",textAlign:"right",fontSize:12,fontWeight:700,color:B.gold}}>
-                {fmt(payments.reduce((a,p) => a + cols.reduce((b,m) => b+(p.meses[m]||0), 0), 0))}
+                {fmt(conPagos.reduce((a,s) => a + cols.reduce((b,m) => b + ((s.pagos && s.pagos[m]) || 0), 0), 0))}
               </td>
             </tr>
           </tfoot>
         </table>
       </div>
+
+      {/* Modal registrar / editar pago */}
+      {open && (
+        <div onClick={() => setOpen(false)}
+          style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
+          <div onClick={e => e.stopPropagation()}
+            style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:22,width:"100%",maxWidth:360}}>
+            <div style={{fontSize:15,fontWeight:700,color:B.gold,marginBottom:16}}>Registrar pago</div>
+
+            <label style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Alumno</label>
+            <select value={sid} onChange={e => abrir(e.target.value, mes)}
+              style={{width:"100%",margin:"5px 0 12px",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14}}>
+              <option value="">Elegí un alumno…</option>
+              {students.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+            </select>
+
+            <label style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Mes</label>
+            <select value={mes} onChange={e => { setMes(e.target.value); const st = students.find(x=>x.id===sid); setMonto(st && st.pagos && st.pagos[e.target.value] ? String(st.pagos[e.target.value]) : "") }}
+              style={{width:"100%",margin:"5px 0 12px",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14}}>
+              {MESES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+
+            <label style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Monto (₲)</label>
+            <input type="number" inputMode="numeric" value={monto} onChange={e => setMonto(e.target.value)} placeholder="650000"
+              style={{width:"100%",margin:"5px 0 12px",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14,outline:"none"}}/>
+
+            <label style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Sumar clases al paquete (opcional)</label>
+            <input type="number" inputMode="numeric" value={clases} onChange={e => setClases(e.target.value)} placeholder="0"
+              style={{width:"100%",margin:"5px 0 16px",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14,outline:"none"}}/>
+
+            <button onClick={guardar}
+              style={{width:"100%",padding:"11px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:"pointer"}}>
+              Guardar
+            </button>
+            {yaExiste && (
+              <button onClick={quitar}
+                style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.dangerBorder}`,background:B.dangerBg,color:"#f87171",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                Quitar este pago
+              </button>
+            )}
+            <button onClick={() => setOpen(false)}
+              style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:13,cursor:"pointer"}}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -582,7 +669,7 @@ function AdminPlanes() {
 }
 
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
-export function AdminMode({ students, payments, schedule, onUpdate, onSaveSchedule, onLogout }) {
+export function AdminMode({ students, schedule, onUpdate, onSaveSchedule, onAddPayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
   return (
     <div style={{display:"flex",height:"100vh",background:B.bg,color:B.text,fontFamily:"'Segoe UI',system-ui,sans-serif",overflow:"hidden"}}>
@@ -591,7 +678,7 @@ export function AdminMode({ students, payments, schedule, onUpdate, onSaveSchedu
         {view==="dashboard"  && <AdminDashboard  students={students} income={INCOME_DATA}/>}
         {view==="alumnos"    && <AdminAlumnos    students={students}/>}
         {view==="asistencia" && <AdminAsistencia students={students} onUpdate={onUpdate}/>}
-        {view==="pagos"      && <AdminPagos      payments={payments}/>}
+        {view==="pagos"      && <AdminPagos      students={students} onAddPayment={onAddPayment} onRemovePayment={onRemovePayment}/>}
         {view==="agenda"     && <AdminAgenda     schedule={schedule} students={students} onSave={onSaveSchedule}/>}
         {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
         {view==="planes"     && <AdminPlanes/>}
