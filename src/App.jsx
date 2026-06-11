@@ -9,7 +9,7 @@ import { AdminMode }   from "./components/AdminMode"
 import { StudentMode } from "./components/StudentMode"
 
 // ── Seed inicial (usar UNA sola vez, luego volver a comentar) ────────────────
-import { seedFirestore } from "./seed"
+// import { seedFirestore } from "./seed"
 
 // ─── Pantallas de estado ──────────────────────────────────────────────────────
 function LoadingScreen() {
@@ -84,7 +84,7 @@ function ProfeAuth({ onSuccess, onCancel }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { students, schedule, loading, error, updateStudent, addPayment, removePayment, saveSchedule } = useAcademia()
+  const { students, schedule, loading, error, updateStudent, addStudent, deleteStudent, addPayment, removePayment, saveSchedule } = useAcademia()
   const [mode, setMode]                         = useState(null) // null | profe | admin | student
   const [currentStudentId, setCurrentStudentId] = useState(null)
   const [loginError, setLoginError]             = useState("")
@@ -128,11 +128,11 @@ export default function App() {
       `}</style>
 
       {/* Botón de seed — descomentar solo para cargar datos, luego borrar */}
-      <button onClick={seedFirestore} style={{position:"fixed",bottom:12,right:12,zIndex:9999,padding:"8px 14px",background:"#16a34a",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:12}}>🌱 Seed DB</button>
+      {/* <button onClick={seedFirestore} style={{position:"fixed",bottom:12,right:12,zIndex:9999,padding:"8px 14px",background:"#16a34a",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:12}}>🌱 Seed DB</button> */}
 
       {mode === null      && <PinPad     onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
       {mode === "profe"   && <ProfeAuth  onSuccess={() => setMode("admin")} onCancel={() => setMode(null)}/>}
-      {mode === "admin"   && <AdminMode  students={students} schedule={schedule} onUpdate={updateStudent} onSaveSchedule={saveSchedule} onAddPayment={addPayment} onRemovePayment={removePayment} onLogout={handleLogout}/>}
+      {mode === "admin"   && <AdminMode  students={students} schedule={schedule} onUpdate={updateStudent} onAddStudent={addStudent} onDeleteStudent={deleteStudent} onSaveSchedule={saveSchedule} onAddPayment={addPayment} onRemovePayment={removePayment} onLogout={handleLogout}/>}
       {mode === "student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout}/>}
     </>
   )
