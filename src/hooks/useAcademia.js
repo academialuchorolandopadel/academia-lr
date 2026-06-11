@@ -55,11 +55,12 @@ async function fetchAlumnoFull(docSnap) {
   })
   base.realizadas = countRealizadas(base.asistencia)
   base.estado = computeEstado(base.abonadas, base.realizadas)
+  base.archivado = base.archivado || false
   return base
 }
 
 // ─── Escritura de alumno (solo lo que cambió) ─────────────────────────────────
-const BASE_FIELDS = ['nombre','iniciales','estado','plan','abonadas','email','tel','pin']
+const BASE_FIELDS = ['nombre','iniciales','estado','plan','abonadas','email','tel','pin','archivado']
 
 async function syncToFirestore(oldS, newS) {
   const id = newS.id
