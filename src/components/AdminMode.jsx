@@ -6,7 +6,7 @@ import {
 } from "recharts"
 import {
   B, AT, LogoLR, INCOME_DATA, PLANES, MESES,
-  DIAS_LABEL, hoyDDMM, dateKey,
+  DIAS_LABEL, hoyDDMM, dateKey, diaCorto,
   fmt, fmtFull, initials, avatarColor,
 } from "../constants"
 
@@ -145,21 +145,144 @@ function AdminDashboard({ students, income }) {
 }
 
 // ─── Alumnos ──────────────────────────────────────────────────────────────────
-function AdminAlumnos({ students }) {
-  const [search, setSearch] = useState("")
-  const [filter, setFilter] = useState("TODOS")
+const PLAN_OPTS = PLANES.map(p => p.nombre)
+const VACIO = { nombre:"", pin:"", plan:"8 Clases", abonadas:"", email:"", tel:"" }
 
-  const filtered = useMemo(() =>
-    students.filter(s =>
-      s.nombre.toLowerCase().includes(search.toLowerCase()) &&
-      (filter === "TODOS" || s.estado === filter)
-    ), [students, search, filter])
+function AlumnoForm({ inicial, titulo, onGuardar, onCancelar, error }) {
+  const [f, setF] = useState(inicial)
+  const set = (k, v) => setF(prev => ({ ...prev, [k]: v }))
+  const inp = {width:"100%",margin:"4px 0 10px",padding:"9px 10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14,outline:"none"}
+  const lbl = {fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}
+  return (
+    <div>
+      <div style={{fontSize:15,fontWeight:700,color:B.gold,marginBottom:14}}>{titulo}</div>
+      <label style={lbl}>Nombre</label>
+      <input style={inp} value={f.nombre} onChange={e=>set("nombre",e.target.value)} placeholder="Nombre y apellido"/>
+      <label style={lbl}>PIN (4 dígitos)</label>
+      <input style={inp} value={f.pin} onChange={e=>set("pin",e.target.value)} inputMode="numeric" maxLength={4} placeholder="1234"/>
+      <label style={lbl}>Plan</label>
+      <select style={inp} value={f.plan} onChange={e=>set("plan",e.target.value)}>
+        {PLAN_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
+      </select>
+      <label style={lbl}>Clases abonadas</label>
+      <input style={inp} type="number" inputMode="numeric" value={f.abonadas} onChange={e=>set("abonadas",e.target.value)} placeholder="0"/>
+      <label style={lbl}>Email (opcional)</label>
+      <input style={inp} value={f.email} onChange={e=>set("email",e.target.value)} placeholder="—"/>
+      <label style={lbl}>Teléfono (opcional)</label>
+      <input style={inp} value={f.tel} onChange={e=>set("tel",e.target.value)} placeholder="—"/>
+      {error && <div style={{fontSize:12,color:"#f87171",marginBottom:8}}>{error}</div>}
+      <button onClick={()=>onGuardar(f)} style={{width:"100%",padding:"11px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:"pointer"}}>Guardar</button>
+      <button onClick={onCancelar} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:13,cursor:"pointer"}}>Cancelar</button>
+    </div>
+  )
+}
+
+function Ficha({ s, onEditar, onBaja, onCerrar }) {
+  const disp = s.abonadas - s.realizadas
+  const cuenta = (m) => s.asistencia.filter(a => a.m === m).length
+  const pagos = Object.entries(s.pagos || {})
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+        <div style={{width:46,height:46,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:"#fff"}}>{s.iniciales}</div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:17,fontWeight:700,color:B.text}}>{s.nombre}</div>
+          <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:20,background:s.estado==="OK"?B.goldBg:B.dangerBg,color:s.estado==="OK"?B.gold:"#f87171",border:`1px solid ${s.estado==="OK"?B.goldBorder:B.dangerBorder}`}}>{s.estado}</span>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        {[{n:s.abonadas,l:"Abonadas"},{n:s.realizadas,l:"Realizadas"},{n:disp,l:"Disponibles"}].map(({n,l})=>(
+          <div key={l} style={{flex:1,background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 6px",textAlign:"center"}}>
+            <div style={{fontSize:20,fontWeight:700,color:l==="Disponibles"?(disp<=2?"#fbbf24":B.gold):B.text}}>{n}</div>
+            <div style={{fontSize:9,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginTop:2}}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:10,fontSize:12,color:B.textSub}}>
+        <div style={{marginBottom:4}}>📋 Plan: <span style={{color:B.text}}>{s.plan}</span></div>
+        <div style={{marginBottom:4}}>🔑 PIN: <span style={{color:B.text}}>{s.pin}</span></div>
+        {s.email && <div style={{marginBottom:4}}>📧 {s.email}</div>}
+        {s.tel && <div>📱 {s.tel}</div>}
+      </div>
+
+      <div style={{display:"flex",gap:6,marginBottom:10}}>
+        {["P","I","X","R"].map(k=>{const st=AT[k];return(
+          <div key={k} style={{flex:1,background:st.bg,border:`1px solid ${st.border}`,borderRadius:8,padding:"8px 4px",textAlign:"center"}}>
+            <div style={{fontSize:16,fontWeight:700,color:st.text}}>{cuenta(k)}</div>
+            <div style={{fontSize:8,color:st.text,opacity:0.8,textTransform:"uppercase"}}>{st.label}</div>
+          </div>
+        )})}
+      </div>
+
+      {pagos.length>0 && (
+        <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+          <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Pagos</div>
+          {pagos.map(([m,v])=>(
+            <div key={m} style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
+              <span style={{color:B.textSub}}>{m}</span><span style={{color:B.gold,fontWeight:600}}>{fmtFull(v)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button onClick={onEditar} style={{width:"100%",padding:"11px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:"pointer"}}>Editar</button>
+      <button onClick={onBaja} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.dangerBorder}`,background:B.dangerBg,color:"#f87171",fontSize:13,fontWeight:600,cursor:"pointer"}}>Dar de baja</button>
+      <button onClick={onCerrar} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:13,cursor:"pointer"}}>Cerrar</button>
+    </div>
+  )
+}
+
+function AdminAlumnos({ students, onAdd, onUpdate, onDelete }) {
+  const [search, setSearch]   = useState("")
+  const [filter, setFilter]   = useState("TODOS")
+  const [selId, setSelId]     = useState(null)
+  const [editing, setEditing] = useState(false)
+  const [adding, setAdding]   = useState(false)
+  const [err, setErr]         = useState("")
+
+  const filtered = useMemo(() => students.filter(s =>
+    s.nombre.toLowerCase().includes(search.toLowerCase()) &&
+    (filter === "TODOS" || s.estado === filter)
+  ), [students, search, filter])
+
+  const sel = students.find(s => s.id === selId) || null
+
+  const cerrarTodo = () => { setSelId(null); setEditing(false); setAdding(false); setErr("") }
+
+  const guardarNuevo = async (f) => {
+    const r = await onAdd(f)
+    if (r && r.ok) cerrarTodo(); else setErr((r && r.msg) || "Error")
+  }
+  const guardarEdit = (f) => {
+    const nombre = (f.nombre || "").trim() || sel.nombre
+    onUpdate(selId, st => ({
+      ...st,
+      nombre,
+      iniciales: nombre.split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase(),
+      pin: f.pin, plan: f.plan, abonadas: Number(f.abonadas)||0,
+      email: f.email, tel: f.tel,
+    }))
+    setEditing(false)
+  }
+  const darDeBaja = () => {
+    if (sel && window.confirm(`¿Dar de baja a ${sel.nombre}? Se borran todos sus datos y no se puede deshacer.`)) {
+      onDelete(sel.id); cerrarTodo()
+    }
+  }
 
   return (
     <div style={{padding:24}}>
-      <div style={{marginBottom:18}}>
-        <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Alumnos</h1>
-        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>{students.length} registrados</p>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
+        <div>
+          <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Alumnos</h1>
+          <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>{students.length} registrados · tocá uno para ver su ficha</p>
+        </div>
+        <button onClick={()=>{ setAdding(true); setErr("") }}
+          style={{padding:"9px 16px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          + Agregar alumno
+        </button>
       </div>
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Buscar..."
@@ -184,7 +307,8 @@ function AdminAlumnos({ students }) {
             {filtered.map((s,i) => {
               const diff = s.abonadas - s.realizadas
               return (
-                <tr key={s.id} style={{borderBottom:i<filtered.length-1?`1px solid ${B.border}`:"none"}}
+                <tr key={s.id} onClick={()=>{ setSelId(s.id); setEditing(false) }}
+                  style={{borderBottom:i<filtered.length-1?`1px solid ${B.border}`:"none",cursor:"pointer"}}
                   onMouseEnter={e=>e.currentTarget.style.background=B.bg}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   <td style={{padding:"10px 12px"}}>
@@ -208,6 +332,27 @@ function AdminAlumnos({ students }) {
           </tbody>
         </table>
       </div>
+
+      {(sel || adding) && (
+        <div onClick={cerrarTodo}
+          style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:22,width:"100%",maxWidth:380,maxHeight:"88vh",overflowY:"auto"}}>
+            {adding && (
+              <AlumnoForm inicial={VACIO} titulo="Nuevo alumno" error={err}
+                onGuardar={guardarNuevo} onCancelar={cerrarTodo}/>
+            )}
+            {sel && editing && (
+              <AlumnoForm titulo="Editar alumno"
+                inicial={{nombre:sel.nombre,pin:sel.pin,plan:sel.plan,abonadas:String(sel.abonadas),email:sel.email||"",tel:sel.tel||""}}
+                onGuardar={guardarEdit} onCancelar={()=>setEditing(false)}/>
+            )}
+            {sel && !editing && (
+              <Ficha s={sel} onEditar={()=>setEditing(true)} onBaja={darDeBaja} onCerrar={cerrarTodo}/>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -261,7 +406,10 @@ function AdminAsistencia({ students, onUpdate }) {
             <tr style={{borderBottom:`1px solid ${B.border}`}}>
               <th style={{padding:"10px 16px",textAlign:"left",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase",minWidth:140}}>Alumno</th>
               {cols.map(d => (
-                <th key={d} style={{padding:"10px 10px",textAlign:"center",fontSize:10,color:d===hoy?B.gold:B.textSub,fontWeight:600,whiteSpace:"nowrap"}}>{d}{d===hoy?" ★":""}</th>
+                <th key={d} style={{padding:"8px 10px",textAlign:"center",fontSize:10,color:d===hoy?B.gold:B.textSub,fontWeight:600,whiteSpace:"nowrap"}}>
+                  <div style={{fontSize:9,opacity:0.85,fontWeight:700}}>{diaCorto(d)}</div>
+                  <div>{d}{d===hoy?" ★":""}</div>
+                </th>
               ))}
               <th style={{padding:"10px 10px",textAlign:"center",fontSize:10,color:B.textSub,fontWeight:600}}>%</th>
             </tr>
@@ -669,14 +817,14 @@ function AdminPlanes() {
 }
 
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
-export function AdminMode({ students, schedule, onUpdate, onSaveSchedule, onAddPayment, onRemovePayment, onLogout }) {
+export function AdminMode({ students, schedule, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onAddPayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
   return (
     <div style={{display:"flex",height:"100vh",background:B.bg,color:B.text,fontFamily:"'Segoe UI',system-ui,sans-serif",overflow:"hidden"}}>
       <AdminSidebar active={view} onNav={setView} onLogout={onLogout}/>
       <main style={{flex:1,overflowY:"auto"}}>
         {view==="dashboard"  && <AdminDashboard  students={students} income={INCOME_DATA}/>}
-        {view==="alumnos"    && <AdminAlumnos    students={students}/>}
+        {view==="alumnos"    && <AdminAlumnos    students={students} onAdd={onAddStudent} onUpdate={onUpdate} onDelete={onDeleteStudent}/>}
         {view==="asistencia" && <AdminAsistencia students={students} onUpdate={onUpdate}/>}
         {view==="pagos"      && <AdminPagos      students={students} onAddPayment={onAddPayment} onRemovePayment={onRemovePayment}/>}
         {view==="agenda"     && <AdminAgenda     schedule={schedule} students={students} onSave={onSaveSchedule}/>}
