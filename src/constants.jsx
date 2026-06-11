@@ -27,10 +27,28 @@ export function LogoLR({ size = 40, color = B.gold }) {
   )
 }
 
+// ─── StatCard (tarjeta de métrica, opcionalmente clickeable) ──────────────────
+export function StatCard({ label, value, sub, icon, color, onClick }) {
+  const c = color || B.gold
+  return (
+    <div onClick={onClick} style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:"16px 18px",flex:1,minWidth:120,cursor:onClick?"pointer":"default"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div>
+          <div style={{fontSize:10,color:B.textSub,marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>{label}</div>
+          <div style={{fontSize:26,fontWeight:700,color:B.text,lineHeight:1}}>{value}</div>
+          {sub && <div style={{fontSize:11,color:c,marginTop:4}}>{sub}</div>}
+        </div>
+        {icon && <span style={{fontSize:20}}>{icon}</span>}
+      </div>
+      {onClick && <div style={{fontSize:9,color:B.textMuted,marginTop:8,letterSpacing:0.5}}>ver detalle ›</div>}
+    </div>
+  )
+}
+
 // ─── Constantes ───────────────────────────────────────────────────────────────
 export const PROFE_PIN = "9999"
 // Email del profe (lo vas a crear en Firebase Auth). NO es secreto, podés editarlo.
-export const PROFE_EMAIL = "luchorolandoacademia@gmail.com"
+export const PROFE_EMAIL = "Luchorolandoacademia@gmail.com"
 
 export const AT = {
   P: { bg:"#052e16", border:"#16a34a", text:"#4ade80", label:"Presente",      icon:"✓" },
