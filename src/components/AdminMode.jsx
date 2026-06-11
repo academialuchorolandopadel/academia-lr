@@ -5,8 +5,8 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts"
 import {
-  B, AT, LogoLR, INCOME_DATA, PLANES, SCHEDULE_SLOTS,
-  DIAS_KEYS, DIAS_LABEL, RECENT_DATES,
+  B, AT, LogoLR, INCOME_DATA, PLANES, SCHEDULE_SLOTS, MESES,
+  DIAS_KEYS, DIAS_LABEL, hoyDDMM, dateKey,
   fmt, fmtFull, initials, avatarColor,
 } from "../constants"
 
@@ -75,7 +75,22 @@ function AdminDashboard({ students, income }) {
   const vencidos = students.filter(s => s.estado === "VENCIDO").length
   const totalCl  = students.reduce((a, s) => a + s.realizadas, 0)
   const lastMes  = income[income.length - 1]
-  const hoyPres  = students.filter(s => s.asistencia[s.asistencia.length-1]?.m === "P")
+
+  // Última clase real: fecha con dateKey más alto entre toda la asistencia
+  let ultimaFecha = null
+  students.forEach(s => s.asistencia.forEach(a => {
+    if (!ultimaFecha || dateKey(a.f) > dateKey(ultimaFecha)) ultimaFecha = a.f
+  }))
+  const hoyPres = ultimaFecha
+    ? students.filter(s => s.asistencia.some(a => a.f === ultimaFecha && a.m === "P"))
+    : []
+
+  // Asistencia promedio real (P+R sobre clases con marca, todos los alumnos)
+  let totMarcas = 0, totPres = 0
+  students.forEach(s => s.asistencia.forEach(a => {
+    if (a.m) { totMarcas++; if (a.m === "P" || a.m === "R") totPres++ }
+  }))
+  const promAsist = totMarcas ? Math.round((totPres / totMarcas) * 100) : 0
 
   return (
     <div style={{padding:24}}>
@@ -87,7 +102,7 @@ function AdminDashboard({ students, income }) {
         <StatCard label="Activos"    value={active}             sub={`${vencidos} vencidos`} icon="✅"/>
         <StatCard label="Clases"     value={totalCl}            sub="realizadas"             icon="🎾" color="#60a5fa"/>
         <StatCard label="Último mes" value={fmt(lastMes.total)} sub={lastMes.mes}            icon="💰"/>
-        <StatCard label="Asistencia" value="82%"                sub="promedio"               icon="📈"/>
+        <StatCard label="Asistencia" value={`${promAsist}%`}    sub="promedio"               icon="📈"/>
       </div>
       <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
         <div style={{flex:"1 1 340px",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:20}}>
@@ -96,8 +111,8 @@ function AdminDashboard({ students, income }) {
             <AreaChart data={income}>
               <defs>
                 <linearGradient id="gP" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={B.gold}    stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor={B.gold}    stopOpacity={0}/>
+                  <stop offset="5%"  stopColor={B.gold}  stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor={B.gold}  stopOpacity={0}/>
                 </linearGradient>
                 <linearGradient id="gC" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor="#60a5fa" stopOpacity={0.3}/>
@@ -109,14 +124,14 @@ function AdminDashboard({ students, income }) {
               <YAxis tickFormatter={v => fmt(v)} tick={{fill:B.textSub,fontSize:9}} axisLine={false} tickLine={false}/>
               <Tooltip formatter={(v,n) => [fmtFull(v), n==="profe"?"Profe":"Cancha"]}
                 contentStyle={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:8,color:B.text}}/>
-              <Area type="monotone" dataKey="profe"  stroke={B.gold}    fill="url(#gP)" strokeWidth={2}/>
+              <Area type="monotone" dataKey="profe"  stroke={B.gold}  fill="url(#gP)" strokeWidth={2}/>
               <Area type="monotone" dataKey="cancha" stroke="#60a5fa" fill="url(#gC)" strokeWidth={2}/>
             </AreaChart>
           </ResponsiveContainer>
         </div>
         <div style={{flex:"1 1 160px",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:20}}>
           <div style={{fontSize:13,fontWeight:600,color:B.text,marginBottom:4}}>Última clase</div>
-          <div style={{fontSize:11,color:B.textSub,marginBottom:12}}>30 Abr · {hoyPres.length} presentes</div>
+          <div style={{fontSize:11,color:B.textSub,marginBottom:12}}>{ultimaFecha || "—"} · {hoyPres.length} presentes</div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {hoyPres.map(s => (
               <div key={s.id} style={{display:"flex",alignItems:"center",gap:7}}>
@@ -201,26 +216,33 @@ function AdminAlumnos({ students }) {
 
 // ─── Asistencia ───────────────────────────────────────────────────────────────
 function AdminAsistencia({ students, onUpdate }) {
-  const hoy     = "01/05"
+  const hoy     = hoyDDMM()
   const activeS = students.filter(s => s.estado === "OK")
 
-  const markAll = (marca) => {
-    activeS.forEach(s => onUpdate(s.id, st => {
-      const has = st.asistencia.find(a => a.f === hoy)
-      return {
-        ...st,
-        asistencia: has
-          ? st.asistencia.map(a => a.f === hoy ? { ...a, m: marca } : a)
-          : [...st.asistencia, { f: hoy, m: marca }],
-      }
-    }))
-  }
+  // Columnas = últimas 12 fechas reales presentes en la data + hoy
+  const cols = useMemo(() => {
+    const set = new Set([hoy])
+    activeS.forEach(s => s.asistencia.forEach(a => { if (a.f) set.add(a.f) }))
+    return [...set].sort((a, b) => dateKey(a) - dateKey(b)).slice(-12)
+  }, [activeS, hoy])
+
+  const setMark = (s, fecha, marca) => onUpdate(s.id, st => {
+    const has = st.asistencia.find(a => a.f === fecha)
+    return {
+      ...st,
+      asistencia: has
+        ? st.asistencia.map(a => a.f === fecha ? { ...a, m: marca } : a)
+        : [...st.asistencia, { f: fecha, m: marca }],
+    }
+  })
+
+  const markAll = (marca) => activeS.forEach(s => setMark(s, hoy, marca))
 
   return (
     <div style={{padding:24}}>
       <div style={{marginBottom:16}}>
         <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Asistencia</h1>
-        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Clic en celda para editar</p>
+        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Clic en celda para editar · ★ = hoy ({hoy})</p>
       </div>
       <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"12px 16px",marginBottom:12}}>
         <div style={{fontSize:11,color:B.textSub,marginBottom:8}}>Clase de hoy ({hoy}) — marcar todos como:</div>
@@ -241,7 +263,7 @@ function AdminAsistencia({ students, onUpdate }) {
           <thead>
             <tr style={{borderBottom:`1px solid ${B.border}`}}>
               <th style={{padding:"10px 16px",textAlign:"left",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase",minWidth:140}}>Alumno</th>
-              {[...RECENT_DATES, hoy].map(d => (
+              {cols.map(d => (
                 <th key={d} style={{padding:"10px 10px",textAlign:"center",fontSize:10,color:d===hoy?B.gold:B.textSub,fontWeight:600,whiteSpace:"nowrap"}}>{d}{d===hoy?" ★":""}</th>
               ))}
               <th style={{padding:"10px 10px",textAlign:"center",fontSize:10,color:B.textSub,fontWeight:600}}>%</th>
@@ -249,9 +271,8 @@ function AdminAsistencia({ students, onUpdate }) {
           </thead>
           <tbody>
             {activeS.map((s, si) => {
-              const allD = [...RECENT_DATES, hoy]
-              const row  = allD.map(d => s.asistencia.find(a => a.f === d)?.m || "")
-              const pres = row.filter(c => c === "P").length
+              const row  = cols.map(d => s.asistencia.find(a => a.f === d)?.m || "")
+              const pres = row.filter(c => c === "P" || c === "R").length
               const tot  = row.filter(c => c !== "").length
               const pct  = tot ? Math.round((pres/tot)*100) : null
 
@@ -265,7 +286,7 @@ function AdminAsistencia({ students, onUpdate }) {
                       <span style={{fontSize:11,color:B.text,whiteSpace:"nowrap"}}>{s.nombre}</span>
                     </div>
                   </td>
-                  {allD.map((d, di) => {
+                  {cols.map((d, di) => {
                     const marca = row[di]
                     const st    = AT[marca]
                     const isHoy = d === hoy
@@ -275,15 +296,7 @@ function AdminAsistencia({ students, onUpdate }) {
                           onClick={() => {
                             const cycle = ["","P","I","X","R"]
                             const next  = cycle[(cycle.indexOf(marca)+1) % cycle.length]
-                            onUpdate(s.id, ss => {
-                              const has = ss.asistencia.find(a => a.f === d)
-                              return {
-                                ...ss,
-                                asistencia: has
-                                  ? ss.asistencia.map(a => a.f === d ? { ...a, m: next } : a)
-                                  : [...ss.asistencia, { f: d, m: next }],
-                              }
-                            })
+                            setMark(s, d, next)
                           }}
                           style={{width:30,height:26,borderRadius:5,border:`1px solid ${st?st.border:isHoy?B.goldBorder:B.border}`,background:st?st.bg:isHoy?B.goldBg:"transparent",color:st?st.text:isHoy?B.gold:B.textMuted,fontSize:10,fontWeight:700,cursor:"pointer"}}>
                           {marca || "·"}
@@ -308,8 +321,8 @@ function AdminAsistencia({ students, onUpdate }) {
 
 // ─── Pagos ────────────────────────────────────────────────────────────────────
 function AdminPagos({ payments }) {
-  const cols   = ["ene","feb","mar","abr"]
-  const labels = ["Enero","Febrero","Marzo","Abril"]
+  // Meses presentes en los datos, en orden de calendario
+  const cols = MESES.filter(m => payments.some(p => p.meses[m]))
 
   return (
     <div style={{padding:24}}>
@@ -322,13 +335,13 @@ function AdminPagos({ payments }) {
           <thead>
             <tr style={{borderBottom:`1px solid ${B.border}`}}>
               <th style={{padding:"10px 16px",textAlign:"left",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase"}}>Alumno</th>
-              {labels.map(l => <th key={l} style={{padding:"10px 12px",textAlign:"right",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase"}}>{l}</th>)}
+              {cols.map(l => <th key={l} style={{padding:"10px 12px",textAlign:"right",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase"}}>{l.slice(0,3)}</th>)}
               <th style={{padding:"10px 12px",textAlign:"right",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase"}}>Total</th>
             </tr>
           </thead>
           <tbody>
             {payments.map((p,i) => {
-              const total = cols.reduce((a,m) => a+(p[m]||0), 0)
+              const total = cols.reduce((a,m) => a+(p.meses[m]||0), 0)
               return (
                 <tr key={p.alumno} style={{borderBottom:i<payments.length-1?`1px solid ${B.border}`:"none"}}
                   onMouseEnter={e=>e.currentTarget.style.background=B.bg}
@@ -341,8 +354,8 @@ function AdminPagos({ payments }) {
                   </td>
                   {cols.map(m => (
                     <td key={m} style={{padding:"11px 12px",textAlign:"right"}}>
-                      {p[m] ? <span style={{fontSize:12,color:B.gold,fontWeight:500}}>{fmt(p[m])}</span>
-                             : <span style={{fontSize:12,color:B.textMuted}}>—</span>}
+                      {p.meses[m] ? <span style={{fontSize:12,color:B.gold,fontWeight:500}}>{fmt(p.meses[m])}</span>
+                                  : <span style={{fontSize:12,color:B.textMuted}}>—</span>}
                     </td>
                   ))}
                   <td style={{padding:"11px 12px",textAlign:"right"}}>
@@ -356,11 +369,11 @@ function AdminPagos({ payments }) {
             <tr style={{borderTop:`1px solid ${B.border}`,background:B.bg}}>
               <td style={{padding:"10px 16px",fontSize:11,fontWeight:700,color:B.textSub}}>TOTALES</td>
               {cols.map(m => {
-                const t = payments.reduce((a,p) => a+(p[m]||0), 0)
+                const t = payments.reduce((a,p) => a+(p.meses[m]||0), 0)
                 return <td key={m} style={{padding:"10px 12px",textAlign:"right",fontSize:11,fontWeight:700,color:B.gold}}>{t ? fmt(t) : "—"}</td>
               })}
               <td style={{padding:"10px 12px",textAlign:"right",fontSize:12,fontWeight:700,color:B.gold}}>
-                {fmt(payments.reduce((a,p) => a+cols.reduce((b,m) => b+(p[m]||0), 0), 0))}
+                {fmt(payments.reduce((a,p) => a + cols.reduce((b,m) => b+(p.meses[m]||0), 0), 0))}
               </td>
             </tr>
           </tfoot>
@@ -417,6 +430,7 @@ function AdminIngresos({ income }) {
   const totalAnual  = income.reduce((a,m) => a+m.total, 0)
   const totalProfe  = income.reduce((a,m) => a+m.profe, 0)
   const totalCancha = income.reduce((a,m) => a+m.cancha, 0)
+  const pct = (v) => totalAnual ? Math.round(v/totalAnual*100) : 0
 
   return (
     <div style={{padding:24}}>
@@ -424,10 +438,10 @@ function AdminIngresos({ income }) {
         <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Ingresos</h1>
       </div>
       <div style={{display:"flex",gap:12,marginBottom:18,flexWrap:"wrap"}}>
-        <StatCard label="Total 2026" value={fmt(totalAnual)}     sub="acumulado"                                     icon="💰"/>
-        <StatCard label="Profe"      value={fmt(totalProfe)}     sub={`${Math.round(totalProfe/totalAnual*100)}%`}   icon="🎾"/>
-        <StatCard label="Cancha"     value={fmt(totalCancha)}    sub={`${Math.round(totalCancha/totalAnual*100)}%`}  icon="🏟️" color="#60a5fa"/>
-        <StatCard label="Ahorro 5%"  value={fmt(totalAnual*0.05)} sub="objetivo"                                    icon="🐖" color="#fbbf24"/>
+        <StatCard label="Total 2026" value={fmt(totalAnual)}      sub="acumulado"        icon="💰"/>
+        <StatCard label="Profe"      value={fmt(totalProfe)}      sub={`${pct(totalProfe)}%`}  icon="🎾"/>
+        <StatCard label="Cancha"     value={fmt(totalCancha)}     sub={`${pct(totalCancha)}%`} icon="🏟️" color="#60a5fa"/>
+        <StatCard label="Ahorro 5%"  value={fmt(totalAnual*0.05)} sub="objetivo"         icon="🐖" color="#fbbf24"/>
       </div>
       <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:18}}>
         <ResponsiveContainer width="100%" height={200}>
@@ -437,7 +451,7 @@ function AdminIngresos({ income }) {
             <YAxis tickFormatter={v => fmt(v)} tick={{fill:B.textSub,fontSize:9}} axisLine={false} tickLine={false}/>
             <Tooltip formatter={(v,n) => [fmtFull(v), n==="profe"?"Profe":"Cancha"]}
               contentStyle={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:8,color:B.text}}/>
-            <Bar dataKey="profe"  fill={B.gold}    radius={[4,4,0,0]} name="profe"/>
+            <Bar dataKey="profe"  fill={B.gold}  radius={[4,4,0,0]} name="profe"/>
             <Bar dataKey="cancha" fill="#3b82f6" radius={[4,4,0,0]} name="cancha"/>
           </BarChart>
         </ResponsiveContainer>
