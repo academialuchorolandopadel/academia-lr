@@ -5,7 +5,7 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts"
 import {
-  B, AT, LogoLR, INCOME_DATA, PLANES, MESES, StatCard,
+  B, AT, LogoLR, INCOME_DATA, MESES, StatCard,
   DIAS_LABEL, hoyDDMM, dateKey, diaCorto,
   fmt, fmtFull, initials, avatarColor,
 } from "../constants"
@@ -54,10 +54,9 @@ function AdminSidebar({ active, onNav, onLogout }) {
 }
 
 // ─── Alumnos ──────────────────────────────────────────────────────────────────
-const PLAN_OPTS = PLANES.map(p => p.nombre)
 const VACIO = { nombre:"", pin:"", plan:"8 Clases", abonadas:"", email:"", tel:"" }
 
-function AlumnoForm({ inicial, titulo, onGuardar, onCancelar, error }) {
+function AlumnoForm({ inicial, titulo, onGuardar, onCancelar, error, planOpts = [] }) {
   const [f, setF] = useState(inicial)
   const set = (k, v) => setF(prev => ({ ...prev, [k]: v }))
   const inp = {width:"100%",margin:"4px 0 10px",padding:"9px 10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14,outline:"none"}
@@ -71,7 +70,7 @@ function AlumnoForm({ inicial, titulo, onGuardar, onCancelar, error }) {
       <input style={inp} value={f.pin} onChange={e=>set("pin",e.target.value)} inputMode="numeric" maxLength={4} placeholder="1234"/>
       <label style={lbl}>Plan</label>
       <select style={inp} value={f.plan} onChange={e=>set("plan",e.target.value)}>
-        {PLAN_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
+        {planOpts.map(p => <option key={p} value={p}>{p}</option>)}
       </select>
       <label style={lbl}>Clases abonadas</label>
       <input style={inp} type="number" inputMode="numeric" value={f.abonadas} onChange={e=>set("abonadas",e.target.value)} placeholder="0"/>
@@ -156,7 +155,7 @@ function Ficha({ s, onEditar, onArchivar, onBaja, onCerrar }) {
   )
 }
 
-function AdminAlumnos({ students, onAdd, onUpdate, onDelete }) {
+function AdminAlumnos({ students, onAdd, onUpdate, onDelete, planNames = [] }) {
   const [search, setSearch]   = useState("")
   const [filter, setFilter]   = useState("Vigentes")
   const [selId, setSelId]     = useState(null)
@@ -271,11 +270,11 @@ function AdminAlumnos({ students, onAdd, onUpdate, onDelete }) {
           <div onClick={e=>e.stopPropagation()}
             style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:22,width:"100%",maxWidth:380,maxHeight:"88vh",overflowY:"auto"}}>
             {adding && (
-              <AlumnoForm inicial={VACIO} titulo="Nuevo alumno" error={err}
+              <AlumnoForm inicial={VACIO} titulo="Nuevo alumno" error={err} planOpts={planNames}
                 onGuardar={guardarNuevo} onCancelar={cerrarTodo}/>
             )}
             {sel && editing && (
-              <AlumnoForm titulo="Editar alumno"
+              <AlumnoForm titulo="Editar alumno" planOpts={planNames}
                 inicial={{nombre:sel.nombre,pin:sel.pin,plan:sel.plan,abonadas:String(sel.abonadas),email:sel.email||"",tel:sel.tel||""}}
                 onGuardar={guardarEdit} onCancelar={()=>setEditing(false)}/>
             )}
@@ -290,25 +289,41 @@ function AdminAlumnos({ students, onAdd, onUpdate, onDelete }) {
 }
 
 // ─── Asistencia ───────────────────────────────────────────────────────────────
-function AdminAsistencia({ students, onUpdate }) {
-  const [wk, setWk] = useState(0)            // 0 = semana actual
+function AdminAsistencia({ students, schedule, onUpdate }) {
+  const [wk, setWk] = useState(0)
   const hoy     = hoyDDMM()
   const activeS = students.filter(s => s.estado === "OK" && !s.archivado)
 
-  // Semana Lun–Sáb según el offset
+  // Semana Lun–Sáb (con etiqueta corta y completa)
   const cols = useMemo(() => {
-    const dias = ["Lun","Mar","Mié","Jue","Vie","Sáb"]
+    const cortos = ["Lun","Mar","Mié","Jue","Vie","Sáb"]
     const base = new Date()
-    const dow  = base.getDay()                 // 0 Dom .. 6 Sáb
+    const dow  = base.getDay()
     const toMon = (dow === 0 ? -6 : 1 - dow)
     const monday = new Date(base)
     monday.setDate(base.getDate() + toMon + wk * 7)
-    return dias.map((dia, i) => {
+    return cortos.map((dia, i) => {
       const d = new Date(monday); d.setDate(monday.getDate() + i)
       const f = `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`
-      return { f, dia }
+      return { f, dia, diaFull: DIAS_LABEL[i] }
     })
   }, [wk])
+
+  // foco: índice de día 0–5, o "semana". Por defecto, hoy (si está en la semana).
+  const [focus, setFocus] = useState(() => {
+    const d = new Date().getDay()           // 0 Dom..6 Sáb
+    return d === 0 ? 0 : d - 1              // Lun=0 .. Sáb=5
+  })
+  const [showAll, setShowAll] = useState(false)
+
+  // Alumnos asignados a un día en la agenda
+  const namesForDay = (diaFull) => {
+    const set = new Set()
+    ;(schedule?.horas || []).forEach(h => {
+      ;(schedule?.asign?.[`${diaFull}|${h}`] || []).forEach(n => set.add(n))
+    })
+    return set
+  }
 
   const setMark = (s, fecha, marca) => onUpdate(s.id, st => {
     const has = st.asistencia.find(a => a.f === fecha)
@@ -320,58 +335,91 @@ function AdminAsistencia({ students, onUpdate }) {
     }
   })
 
-  const markAll = (marca) => activeS.forEach(s => setMark(s, hoy, marca))
-
-  // % de asistencia general del alumno (sobre toda su historia)
   const overallPct = (s) => {
     const tot  = s.asistencia.filter(a => a.m).length
     const pres = s.asistencia.filter(a => a.m === "P" || a.m === "R").length
     return tot ? Math.round((pres / tot) * 100) : null
   }
 
+  const esSemana = focus === "semana"
+  const dispCols = esSemana ? cols : [cols[focus]]
+  const focusDate = esSemana ? hoy : cols[focus].f
+
+  // Filas a mostrar
+  let rows = activeS
+  if (!esSemana && !showAll) {
+    const nombres = namesForDay(cols[focus].diaFull)
+    rows = activeS.filter(s => nombres.has(s.nombre))
+  }
+
+  const markAll = (marca) => rows.forEach(s => setMark(s, focusDate, marca))
+
   return (
     <div style={{padding:24}}>
       <div style={{marginBottom:14}}>
         <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Asistencia</h1>
-        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Lunes a sábado · clic en celda para marcar</p>
+        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Por día se ven solo los que entrenan (según la agenda)</p>
       </div>
 
       {/* Navegación de semanas */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-        <button onClick={()=>setWk(wk-1)}
-          style={{padding:"7px 12px",borderRadius:8,border:`1px solid ${B.border}`,background:B.bgCard,color:B.text,fontSize:13,cursor:"pointer"}}>◀ Semana</button>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:12,color:B.textSub}}>Semana del {cols[0].f} al {cols[5].f}</span>
-          {wk!==0 && <button onClick={()=>setWk(0)} style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${B.goldBorder}`,background:B.goldBg,color:B.gold,fontSize:11,cursor:"pointer",fontWeight:600}}>Hoy</button>}
-        </div>
-        <button onClick={()=>setWk(wk+1)}
-          style={{padding:"7px 12px",borderRadius:8,border:`1px solid ${B.border}`,background:B.bgCard,color:B.text,fontSize:13,cursor:"pointer"}}>Semana ▶</button>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+        <button onClick={()=>setWk(wk-1)} style={{padding:"7px 12px",borderRadius:8,border:`1px solid ${B.border}`,background:B.bgCard,color:B.text,fontSize:13,cursor:"pointer"}}>◀ Semana</button>
+        <span style={{fontSize:12,color:B.textSub}}>{cols[0].f} al {cols[5].f}{wk!==0 && <button onClick={()=>setWk(0)} style={{marginLeft:8,padding:"4px 9px",borderRadius:7,border:`1px solid ${B.goldBorder}`,background:B.goldBg,color:B.gold,fontSize:11,cursor:"pointer",fontWeight:600}}>Hoy</button>}</span>
+        <button onClick={()=>setWk(wk+1)} style={{padding:"7px 12px",borderRadius:8,border:`1px solid ${B.border}`,background:B.bgCard,color:B.text,fontSize:13,cursor:"pointer"}}>Semana ▶</button>
       </div>
 
-      {/* Marcar todos (solo en la semana actual) */}
-      {wk===0 && (
-        <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"12px 16px",marginBottom:12}}>
-          <div style={{fontSize:11,color:B.textSub,marginBottom:8}}>Clase de hoy ({hoy}) — marcar todos como:</div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {["P","I","X","R"].map(k => {
-              const st = AT[k]
-              return (
-                <button key={k} onClick={() => markAll(k)}
-                  style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${st.border}`,background:st.bg,color:st.text,fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                  {k} — {st.label}
-                </button>
-              )
-            })}
-          </div>
+      {/* Selector de día / semana */}
+      <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+        {cols.map((c, i) => {
+          const on = focus === i
+          return (
+            <button key={c.f} onClick={()=>setFocus(i)}
+              style={{padding:"7px 10px",borderRadius:8,border:`1px solid ${on?B.gold:B.border}`,background:on?B.goldBg:B.bgCard,color:on?B.gold:B.textSub,fontSize:12,fontWeight:on?600:400,cursor:"pointer",textAlign:"center",lineHeight:1.2}}>
+              {c.dia}<br/><span style={{fontSize:10,opacity:0.8}}>{c.f}{c.f===hoy?" ★":""}</span>
+            </button>
+          )
+        })}
+        <button onClick={()=>setFocus("semana")}
+          style={{padding:"7px 12px",borderRadius:8,border:`1px solid ${esSemana?B.gold:B.border}`,background:esSemana?B.goldBg:B.bgCard,color:esSemana?B.gold:B.textSub,fontSize:12,fontWeight:esSemana?600:400,cursor:"pointer"}}>
+          Semana
+        </button>
+      </div>
+
+      {/* Marcar todos + Ver todos */}
+      <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"12px 16px",marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8,marginBottom:8}}>
+          <div style={{fontSize:11,color:B.textSub}}>Marcar todos ({focusDate}) como:</div>
+          {!esSemana && (
+            <button onClick={()=>setShowAll(v=>!v)}
+              style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${showAll?B.gold:B.border}`,background:showAll?B.goldBg:"transparent",color:showAll?B.gold:B.textSub,fontSize:11,cursor:"pointer",fontWeight:600}}>
+              {showAll ? "✓ Viendo todos" : "Ver todos"}
+            </button>
+          )}
         </div>
-      )}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {["P","I","X","R"].map(k => {
+            const st = AT[k]
+            return (
+              <button key={k} onClick={() => markAll(k)}
+                style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${st.border}`,background:st.bg,color:st.text,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                {k} — {st.label}
+              </button>
+            )
+          })}
+        </div>
+        {!esSemana && (
+          <div style={{fontSize:11,color:B.textSub,marginTop:8}}>
+            {rows.length} alumno{rows.length!==1?"s":""} {showAll ? "en total" : "con clase este día"}
+          </div>
+        )}
+      </div>
 
       <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,overflow:"auto"}}>
         <table style={{borderCollapse:"collapse",minWidth:"100%"}}>
           <thead>
             <tr style={{borderBottom:`1px solid ${B.border}`}}>
               <th style={{padding:"10px 16px",textAlign:"left",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase",minWidth:140}}>Alumno</th>
-              {cols.map(c => (
+              {dispCols.map(c => (
                 <th key={c.f} style={{padding:"8px 10px",textAlign:"center",fontSize:10,color:c.f===hoy?B.gold:B.textSub,fontWeight:600,whiteSpace:"nowrap"}}>
                   <div style={{fontSize:10,fontWeight:700}}>{c.dia}</div>
                   <div style={{fontSize:9,opacity:0.85}}>{c.f}{c.f===hoy?" ★":""}</div>
@@ -381,10 +429,15 @@ function AdminAsistencia({ students, onUpdate }) {
             </tr>
           </thead>
           <tbody>
-            {activeS.map((s, si) => {
+            {rows.length === 0 && (
+              <tr><td colSpan={dispCols.length+2} style={{padding:"20px 16px",textAlign:"center",fontSize:12,color:B.textMuted}}>
+                Nadie asignado este día en la agenda. Tocá "Ver todos" para marcar igual.
+              </td></tr>
+            )}
+            {rows.map((s, si) => {
               const pct = overallPct(s)
               return (
-                <tr key={s.id} style={{borderBottom:si<activeS.length-1?`1px solid ${B.border}`:"none"}}
+                <tr key={s.id} style={{borderBottom:si<rows.length-1?`1px solid ${B.border}`:"none"}}
                   onMouseEnter={e=>e.currentTarget.style.background=B.bg}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   <td style={{padding:"8px 16px"}}>
@@ -393,7 +446,7 @@ function AdminAsistencia({ students, onUpdate }) {
                       <span style={{fontSize:11,color:B.text,whiteSpace:"nowrap"}}>{s.nombre}</span>
                     </div>
                   </td>
-                  {cols.map((c) => {
+                  {dispCols.map((c) => {
                     const marca = s.asistencia.find(a => a.f === c.f)?.m || ""
                     const st    = AT[marca]
                     const isHoy = c.f === hoy
@@ -740,16 +793,77 @@ function AdminIngresos({ income }) {
   )
 }
 
-// ─── Planes ───────────────────────────────────────────────────────────────────
-function AdminPlanes() {
+// ─── Planes (editable) ────────────────────────────────────────────────────────
+function PlanForm({ inicial, titulo, onGuardar, onCancelar }) {
+  const [f, setF] = useState(inicial)
+  const set = (k, v) => setF(prev => ({ ...prev, [k]: v }))
+  const inp = {width:"100%",margin:"4px 0 10px",padding:"9px 10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14,outline:"none"}
+  const lbl = {fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}
+  return (
+    <div>
+      <div style={{fontSize:15,fontWeight:700,color:B.gold,marginBottom:14}}>{titulo}</div>
+      <label style={lbl}>Código (1 letra)</label>
+      <input style={inp} value={f.code} maxLength={2} onChange={e=>set("code",e.target.value)} placeholder="O"/>
+      <label style={lbl}>Nombre</label>
+      <input style={inp} value={f.nombre} onChange={e=>set("nombre",e.target.value)} placeholder="8 Clases"/>
+      <label style={lbl}>Cantidad de clases</label>
+      <input style={inp} type="number" inputMode="numeric" value={f.clases} onChange={e=>set("clases",e.target.value)} placeholder="8"/>
+      <label style={lbl}>Precio individual (₲)</label>
+      <input style={inp} type="number" inputMode="numeric" value={f.individual} onChange={e=>set("individual",e.target.value)} placeholder="650000"/>
+      <label style={lbl}>Precio pareja (₲, opcional)</label>
+      <input style={inp} type="number" inputMode="numeric" value={f.pareja} onChange={e=>set("pareja",e.target.value)} placeholder="—"/>
+      <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:B.text,margin:"4px 0 14px",cursor:"pointer"}}>
+        <input type="checkbox" checked={!!f.popular} onChange={e=>set("popular",e.target.checked)} style={{width:18,height:18,accentColor:B.gold}}/>
+        Destacar como POPULAR
+      </label>
+      <button onClick={()=>onGuardar(f)} style={{width:"100%",padding:"11px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:"pointer"}}>Guardar</button>
+      <button onClick={onCancelar} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:13,cursor:"pointer"}}>Cancelar</button>
+    </div>
+  )
+}
+
+function AdminPlanes({ planes, onSave }) {
+  const lista = planes || []
+  const [edit, setEdit] = useState(null)   // índice (number), "new", o null
+
+  const guardar = (f) => {
+    const plan = {
+      code: (f.code || "").toUpperCase().slice(0,2) || "?",
+      nombre: (f.nombre || "").trim() || "Paquete",
+      clases: Number(f.clases) || 0,
+      individual: Number(f.individual) || 0,
+      popular: !!f.popular,
+    }
+    if (f.pareja !== "" && f.pareja != null) plan.pareja = Number(f.pareja)
+    const next = edit === "new" ? [...lista, plan] : lista.map((p,i) => i===edit ? plan : p)
+    onSave(next)
+    setEdit(null)
+  }
+  const borrar = (i) => {
+    if (window.confirm(`¿Eliminar el paquete "${lista[i].nombre}"?`)) onSave(lista.filter((_,j)=>j!==i))
+  }
+  const inicialDe = (i) => {
+    if (i === "new") return { code:"", nombre:"", clases:"", individual:"", pareja:"", popular:false }
+    const p = lista[i]
+    return { code:p.code||"", nombre:p.nombre||"", clases:String(p.clases||""), individual:String(p.individual||""), pareja:p.pareja!=null?String(p.pareja):"", popular:!!p.popular }
+  }
+
   return (
     <div style={{padding:24}}>
-      <div style={{marginBottom:16}}>
-        <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Planes</h1>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+        <div>
+          <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Planes</h1>
+          <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Tocá un paquete para editarlo</p>
+        </div>
+        <button onClick={()=>setEdit("new")}
+          style={{padding:"9px 16px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          + Nuevo paquete
+        </button>
       </div>
+
       <div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:20}}>
-        {PLANES.map(p => (
-          <div key={p.code} style={{flex:"1 1 160px",background:B.bgCard,border:`1px solid ${p.popular?B.gold:B.border}`,borderRadius:14,padding:20,position:"relative"}}>
+        {lista.map((p, i) => (
+          <div key={i} onClick={()=>setEdit(i)} style={{flex:"1 1 160px",background:B.bgCard,border:`1px solid ${p.popular?B.gold:B.border}`,borderRadius:14,padding:20,position:"relative",cursor:"pointer"}}>
             {p.popular && (
               <div style={{position:"absolute",top:12,right:12,fontSize:9,fontWeight:700,color:B.bgDark,background:B.gold,padding:"2px 8px",borderRadius:20}}>POPULAR</div>
             )}
@@ -761,16 +875,20 @@ function AdminPlanes() {
                 <span style={{fontSize:11,color:B.textSub}}>Individual</span>
                 <span style={{fontSize:13,fontWeight:700,color:B.text}}>{fmtFull(p.individual)}</span>
               </div>
-              {p.pareja && (
+              {p.pareja != null && (
                 <div style={{display:"flex",justifyContent:"space-between"}}>
                   <span style={{fontSize:11,color:B.textSub}}>Pareja</span>
                   <span style={{fontSize:13,fontWeight:700,color:B.text}}>{fmtFull(p.pareja)}</span>
                 </div>
               )}
             </div>
+            <button onClick={(e)=>{ e.stopPropagation(); borrar(i) }}
+              style={{position:"absolute",bottom:10,right:10,background:"transparent",border:"none",color:B.textMuted,cursor:"pointer",fontSize:13}}>🗑</button>
           </div>
         ))}
+        {lista.length===0 && <div style={{fontSize:13,color:B.textMuted}}>Sin paquetes. Tocá "+ Nuevo paquete".</div>}
       </div>
+
       <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:18}}>
         <div style={{fontSize:13,fontWeight:600,color:B.text,marginBottom:12}}>Tipos de asistencia</div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -782,6 +900,17 @@ function AdminPlanes() {
           ))}
         </div>
       </div>
+
+      {edit !== null && (
+        <div onClick={()=>setEdit(null)}
+          style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:22,width:"100%",maxWidth:360,maxHeight:"88vh",overflowY:"auto"}}>
+            <PlanForm inicial={inicialDe(edit)} titulo={edit==="new"?"Nuevo paquete":"Editar paquete"}
+              onGuardar={guardar} onCancelar={()=>setEdit(null)}/>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -830,19 +959,20 @@ function AdminTopNav({ active, onNav, onLogout }) {
 }
 
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
-export function AdminMode({ students, schedule, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onAddPayment, onRemovePayment, onLogout }) {
+export function AdminMode({ students, schedule, planes, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onAddPayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
   const isMobile = useIsMobile()
+  const planNames = (planes || []).map(p => p.nombre)
 
   const renderView = () => (
     <>
       {view==="dashboard"  && <AdminDashboard  students={students} income={INCOME_DATA}/>}
-      {view==="alumnos"    && <AdminAlumnos    students={students} onAdd={onAddStudent} onUpdate={onUpdate} onDelete={onDeleteStudent}/>}
-      {view==="asistencia" && <AdminAsistencia students={students} onUpdate={onUpdate}/>}
+      {view==="alumnos"    && <AdminAlumnos    students={students} onAdd={onAddStudent} onUpdate={onUpdate} onDelete={onDeleteStudent} planNames={planNames}/>}
+      {view==="asistencia" && <AdminAsistencia students={students} schedule={schedule} onUpdate={onUpdate}/>}
       {view==="pagos"      && <AdminPagos      students={students} onAddPayment={onAddPayment} onRemovePayment={onRemovePayment}/>}
       {view==="agenda"     && <AdminAgenda     schedule={schedule} students={students} onSave={onSaveSchedule}/>}
       {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
-      {view==="planes"     && <AdminPlanes/>}
+      {view==="planes"     && <AdminPlanes     planes={planes} onSave={onSavePlanes}/>}
     </>
   )
 
