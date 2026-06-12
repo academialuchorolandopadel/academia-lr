@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
 import { db } from '../firebase'
-import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL } from '../constants'
+import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL, PLANES } from '../constants'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const dateKey = (f) => {
@@ -84,6 +84,7 @@ async function syncToFirestore(oldS, newS) {
 export function useAcademia() {
   const [students, setStudents] = useState([])
   const [schedule, setSchedule] = useState({ horas: [], asign: {} })
+  const [planes, setPlanes]     = useState(PLANES)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const studentsRef = useRef([])
@@ -104,6 +105,8 @@ export function useAcademia() {
         studentsRef.current = list
         const schSnap = await getDoc(doc(db, 'config', 'horarios'))
         setSchedule(schSnap.exists() ? schSnap.data() : defaultSchedule())
+        const planSnap = await getDoc(doc(db, 'config', 'planes'))
+        if (planSnap.exists() && Array.isArray(planSnap.data().lista)) setPlanes(planSnap.data().lista)
       } catch (err) {
         console.error('Firestore load error:', err)
         setError(err.message)
@@ -200,10 +203,15 @@ export function useAcademia() {
     }
   }, [])
 
+  const savePlanes = useCallback((lista) => {
+    setPlanes(lista)
+    setDoc(doc(db, 'config', 'planes'), { lista }).catch(err => console.error('Planes write error:', err))
+  }, [])
+
   const saveSchedule = useCallback((next) => {
     setSchedule(next)
     setDoc(doc(db, 'config', 'horarios'), next).catch(err => console.error('Schedule write error:', err))
   }, [])
 
-  return { students, schedule, loading, error, updateStudent, addStudent, deleteStudent, addPayment, removePayment, saveSchedule }
+  return { students, schedule, planes, loading, error, updateStudent, addStudent, deleteStudent, addPayment, removePayment, saveSchedule, savePlanes }
 }
