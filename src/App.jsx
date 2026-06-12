@@ -1,6 +1,6 @@
 // src/App.jsx
-import { useState } from "react"
-import { signInWithEmailAndPassword, signOut } from "firebase/auth"
+import { useState, useEffect } from "react"
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth"
 import { auth } from "./firebase"
 import { useAcademia } from "./hooks/useAcademia"
 import { B, LogoLR, PROFE_PIN, PROFE_EMAIL } from "./constants"
@@ -84,12 +84,22 @@ function ProfeAuth({ onSuccess, onCancel }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { students, schedule, loading, error, updateStudent, addStudent, deleteStudent, addPayment, removePayment, saveSchedule } = useAcademia()
+  const { students, schedule, planes, loading, error, updateStudent, addStudent, deleteStudent, addPayment, removePayment, saveSchedule, savePlanes } = useAcademia()
   const [mode, setMode]                         = useState(null) // null | profe | admin | student
   const [currentStudentId, setCurrentStudentId] = useState(null)
   const [loginError, setLoginError]             = useState("")
+  const [authChecked, setAuthChecked]           = useState(false)
 
-  if (loading) return <LoadingScreen/>
+  // Si ya hay sesión de profe activa, entrar directo al panel
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) setMode("admin")
+      setAuthChecked(true)
+    })
+    return unsub
+  }, [])
+
+  if (loading || !authChecked) return <LoadingScreen/>
   if (error)   return <ErrorScreen error={error}/>
 
   const handleLogin = (pin) => {
@@ -132,7 +142,7 @@ export default function App() {
 
       {mode === null      && <PinPad     onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
       {mode === "profe"   && <ProfeAuth  onSuccess={() => setMode("admin")} onCancel={() => setMode(null)}/>}
-      {mode === "admin"   && <AdminMode  students={students} schedule={schedule} onUpdate={updateStudent} onAddStudent={addStudent} onDeleteStudent={deleteStudent} onSaveSchedule={saveSchedule} onAddPayment={addPayment} onRemovePayment={removePayment} onLogout={handleLogout}/>}
+      {mode === "admin"   && <AdminMode  students={students} schedule={schedule} planes={planes} onUpdate={updateStudent} onAddStudent={addStudent} onDeleteStudent={deleteStudent} onSaveSchedule={saveSchedule} onSavePlanes={savePlanes} onAddPayment={addPayment} onRemovePayment={removePayment} onLogout={handleLogout}/>}
       {mode === "student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout}/>}
     </>
   )
