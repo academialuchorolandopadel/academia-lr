@@ -22,7 +22,7 @@ export default defineConfig({
         theme_color:      '#0f1a2e',
         background_color: '#0f1a2e',
         display:          'standalone',   // ← se ve como app nativa (sin barra del browser)
-        orientation:      'portrait',
+        orientation:      'any',
         scope:            '/academia-lr/',
         start_url:        '/academia-lr/',
         icons: [
