@@ -85,6 +85,7 @@ export function useAcademia() {
   const [students, setStudents] = useState([])
   const [schedule, setSchedule] = useState({ horas: [], asign: {} })
   const [planes, setPlanes]     = useState(PLANES)
+  const [consejos, setConsejos] = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const studentsRef = useRef([])
@@ -107,6 +108,8 @@ export function useAcademia() {
         setSchedule(schSnap.exists() ? schSnap.data() : defaultSchedule())
         const planSnap = await getDoc(doc(db, 'config', 'planes'))
         if (planSnap.exists() && Array.isArray(planSnap.data().lista)) setPlanes(planSnap.data().lista)
+        const consSnap = await getDoc(doc(db, 'config', 'consejos'))
+        if (consSnap.exists() && Array.isArray(consSnap.data().items)) setConsejos(consSnap.data().items)
       } catch (err) {
         console.error('Firestore load error:', err)
         setError(err.message)
@@ -203,6 +206,27 @@ export function useAcademia() {
     }
   }, [])
 
+  const saveConsejos = useCallback((items) => {
+    setConsejos(items)
+    setDoc(doc(db, 'config', 'consejos'), { items }).catch(err => console.error('Consejos write error:', err))
+  }, [])
+
+  // Notas personales del alumno (bitácora)
+  const loadNotas = useCallback(async (id) => {
+    const snap = await getDocs(collection(db, 'alumnos', id, 'notas'))
+    return snap.docs
+      .map(d => ({ id: d.id, texto: d.data().texto, fecha: d.data().fecha || null }))
+      .sort((a, b) => String(b.fecha||'').localeCompare(String(a.fecha||'')))
+  }, [])
+  const addNota = useCallback(async (id, texto) => {
+    const fecha = new Date().toISOString()
+    const ref = await addDoc(collection(db, 'alumnos', id, 'notas'), { texto, fecha })
+    return { id: ref.id, texto, fecha }
+  }, [])
+  const deleteNota = useCallback(async (id, notaId) => {
+    await deleteDoc(doc(db, 'alumnos', id, 'notas', notaId))
+  }, [])
+
   const savePlanes = useCallback((lista) => {
     setPlanes(lista)
     setDoc(doc(db, 'config', 'planes'), { lista }).catch(err => console.error('Planes write error:', err))
@@ -213,5 +237,5 @@ export function useAcademia() {
     setDoc(doc(db, 'config', 'horarios'), next).catch(err => console.error('Schedule write error:', err))
   }, [])
 
-  return { students, schedule, planes, loading, error, updateStudent, addStudent, deleteStudent, addPayment, removePayment, saveSchedule, savePlanes }
+  return { students, schedule, planes, consejos, loading, error, updateStudent, addStudent, deleteStudent, addPayment, removePayment, saveSchedule, savePlanes, saveConsejos, loadNotas, addNota, deleteNota }
 }
