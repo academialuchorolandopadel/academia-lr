@@ -1,8 +1,8 @@
 // src/components/StudentMode.jsx
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { B, AT, NOTE_STYLE, fmtFull, getNotifications, LogoLR } from "../constants"
 
-export function StudentMode({ student, onLogout }) {
+export function StudentMode({ student, onLogout, consejos = [], onLoadNotas, onAddNota, onDeleteNota }) {
   const [tab, setTab] = useState("cuenta")
 
   const notes      = getNotifications(student)
@@ -13,11 +13,44 @@ export function StudentMode({ student, onLogout }) {
   const totalC     = student.asistencia.filter(a => a.m !== "").length
   const asistPct   = totalC ? Math.round((presentes/totalC)*100) : 0
 
+  // Notas personales (bitácora)
+  const [notas, setNotas]         = useState(null)   // null = sin cargar
+  const [nuevaNota, setNuevaNota] = useState("")
+  const [guardando, setGuardando] = useState(false)
+  useEffect(() => {
+    if (tab === "notas" && notas === null && onLoadNotas) {
+      onLoadNotas(student.id).then(setNotas).catch(() => setNotas([]))
+    }
+  }, [tab])
+  const guardarNota = async () => {
+    const t = nuevaNota.trim()
+    if (!t || guardando) return
+    setGuardando(true)
+    try {
+      const n = await onAddNota(student.id, t)
+      setNotas(prev => [n, ...(prev || [])])
+      setNuevaNota("")
+    } catch (e) { /* noop */ }
+    setGuardando(false)
+  }
+  const borrarNota = async (notaId) => {
+    if (!window.confirm("¿Borrar esta nota?")) return
+    try { await onDeleteNota(student.id, notaId) } catch (e) {}
+    setNotas(prev => (prev || []).filter(n => n.id !== notaId))
+  }
+  const fechaNota = (iso) => {
+    if (!iso) return ""
+    const d = new Date(iso)
+    return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`
+  }
+
   const TABS = [
     { id:"cuenta",     label:"Mi Cuenta",  icon:"◈" },
     { id:"avisos",     label:"Avisos",     icon:"🔔", badge:badgeCount },
     { id:"asistencia", label:"Asistencia", icon:"◉" },
     { id:"pagos",      label:"Pagos",      icon:"◇" },
+    { id:"consejos",   label:"Consejos",   icon:"💡" },
+    { id:"notas",      label:"Mis notas",  icon:"📝" },
   ]
 
   return (
@@ -198,6 +231,59 @@ export function StudentMode({ student, onLogout }) {
                 <div style={{fontSize:32,marginBottom:10}}>📋</div>
                 <div style={{fontSize:14,color:"#f87171"}}>Sin pagos registrados</div>
                 <div style={{fontSize:12,color:B.textSub,marginTop:5}}>Consultá con tu profe.</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab: Consejos del profe */}
+        {tab==="consejos" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {consejos.length === 0 ? (
+              <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:14,padding:28,textAlign:"center"}}>
+                <div style={{fontSize:32,marginBottom:10}}>💡</div>
+                <div style={{fontSize:14,color:B.textSub}}>Todavía no hay consejos.</div>
+              </div>
+            ) : consejos.map((c, i) => (
+              <div key={c.id || i} style={{background:B.goldBg,border:`1px solid ${B.goldBorder}`,borderRadius:14,padding:"16px 18px",display:"flex",gap:12}}>
+                <span style={{fontSize:22,flexShrink:0}}>🎾</span>
+                <div style={{fontSize:13,color:B.text,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{c.texto}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Tab: Mis notas (bitácora personal) */}
+        {tab==="notas" && (
+          <div>
+            <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:14,padding:14,marginBottom:14}}>
+              <div style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Nueva nota</div>
+              <textarea value={nuevaNota} onChange={e=>setNuevaNota(e.target.value)} rows={3}
+                placeholder="Anotá algo de tu clase, tu juego, un partido o torneo..."
+                style={{width:"100%",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
+              <button onClick={guardarNota} disabled={guardando}
+                style={{width:"100%",marginTop:8,padding:"10px",borderRadius:8,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:guardando?"default":"pointer",opacity:guardando?0.6:1}}>
+                {guardando ? "Guardando..." : "Agregar nota"}
+              </button>
+            </div>
+            {notas === null ? (
+              <div style={{fontSize:12,color:B.textMuted,textAlign:"center",padding:10}}>Cargando...</div>
+            ) : notas.length === 0 ? (
+              <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:14,padding:24,textAlign:"center"}}>
+                <div style={{fontSize:28,marginBottom:8}}>📝</div>
+                <div style={{fontSize:13,color:B.textSub}}>Tu bitácora está vacía. ¡Escribí tu primera nota!</div>
+              </div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {notas.map(n => (
+                  <div key={n.id} style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+                      <div style={{fontSize:13,color:B.text,lineHeight:1.5,whiteSpace:"pre-wrap",flex:1}}>{n.texto}</div>
+                      <button onClick={()=>borrarNota(n.id)} style={{background:"transparent",border:"none",color:B.textMuted,cursor:"pointer",fontSize:13,flexShrink:0}}>🗑</button>
+                    </div>
+                    <div style={{fontSize:10,color:B.textMuted,marginTop:6}}>{fechaNota(n.fecha)}</div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
