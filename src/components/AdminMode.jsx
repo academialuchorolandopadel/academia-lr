@@ -10,6 +10,7 @@ import {
   fmt, fmtFull, initials, avatarColor,
 } from "../constants"
 import { AdminDashboard } from "./AdminDashboard"
+import { AdminConsejos } from "./AdminConsejos"
 
 const ADMIN_NAV = [
   { id:"dashboard",  label:"Dashboard",  emoji:"▦" },
@@ -19,6 +20,7 @@ const ADMIN_NAV = [
   { id:"agenda",     label:"Agenda",     emoji:"◻" },
   { id:"ingresos",   label:"Ingresos",   emoji:"△" },
   { id:"planes",     label:"Planes",     emoji:"❖" },
+  { id:"consejos",   label:"Consejos",   emoji:"💡" },
 ]
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
@@ -959,7 +961,7 @@ function AdminTopNav({ active, onNav, onLogout }) {
 }
 
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
-export function AdminMode({ students, schedule, planes, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onAddPayment, onRemovePayment, onLogout }) {
+export function AdminMode({ students, schedule, planes, consejos, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onAddPayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
   const isMobile = useIsMobile()
   const planNames = (planes || []).map(p => p.nombre)
@@ -973,6 +975,7 @@ export function AdminMode({ students, schedule, planes, onUpdate, onAddStudent, 
       {view==="agenda"     && <AdminAgenda     schedule={schedule} students={students} onSave={onSaveSchedule}/>}
       {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
       {view==="planes"     && <AdminPlanes     planes={planes} onSave={onSavePlanes}/>}
+      {view==="consejos"   && <AdminConsejos   consejos={consejos} onSave={onSaveConsejos}/>}
     </>
   )
 
