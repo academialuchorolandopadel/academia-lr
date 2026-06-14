@@ -84,7 +84,7 @@ function ProfeAuth({ onSuccess, onCancel }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { students, schedule, planes, loading, error, updateStudent, addStudent, deleteStudent, addPayment, removePayment, saveSchedule, savePlanes } = useAcademia()
+  const { students, schedule, planes, consejos, loading, error, updateStudent, addStudent, deleteStudent, addPayment, removePayment, saveSchedule, savePlanes, saveConsejos, loadNotas, addNota, deleteNota } = useAcademia()
   const [mode, setMode]                         = useState(null) // null | profe | admin | student
   const [currentStudentId, setCurrentStudentId] = useState(null)
   const [loginError, setLoginError]             = useState("")
@@ -142,8 +142,8 @@ export default function App() {
 
       {mode === null      && <PinPad     onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
       {mode === "profe"   && <ProfeAuth  onSuccess={() => setMode("admin")} onCancel={() => setMode(null)}/>}
-      {mode === "admin"   && <AdminMode  students={students} schedule={schedule} planes={planes} onUpdate={updateStudent} onAddStudent={addStudent} onDeleteStudent={deleteStudent} onSaveSchedule={saveSchedule} onSavePlanes={savePlanes} onAddPayment={addPayment} onRemovePayment={removePayment} onLogout={handleLogout}/>}
-      {mode === "student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout}/>}
+      {mode === "admin"   && <AdminMode  students={students} schedule={schedule} planes={planes} consejos={consejos} onUpdate={updateStudent} onAddStudent={addStudent} onDeleteStudent={deleteStudent} onSaveSchedule={saveSchedule} onSavePlanes={savePlanes} onSaveConsejos={saveConsejos} onAddPayment={addPayment} onRemovePayment={removePayment} onLogout={handleLogout}/>}
+      {mode === "student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout} consejos={consejos} onLoadNotas={loadNotas} onAddNota={addNota} onDeleteNota={deleteNota}/>}
     </>
   )
 }
