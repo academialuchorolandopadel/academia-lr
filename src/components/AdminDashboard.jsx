@@ -3,7 +3,7 @@ import { useState } from "react"
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts"
-import { B, AT, StatCard, fmt, fmtFull, diaCorto, avatarColor } from "../constants"
+import { B, AT, StatCard, MESES, fmt, fmtFull, diaCorto, avatarColor } from "../constants"
 
 const DIAS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"]
 
@@ -29,6 +29,8 @@ export function AdminDashboard({ students, income }) {
   const vencidos = students.filter(s => s.estado === "VENCIDO" && !s.archivado)
   const totalCl  = students.reduce((a, s) => a + s.realizadas, 0)
   const lastMes  = income[income.length - 1]
+  const mesNombre = MESES[new Date().getMonth()]
+  const cobradoMes = students.reduce((a, s) => a + ((s.pagos && s.pagos[mesNombre]) || 0), 0)
 
   // Última clase real
   let ultimaFecha = null
@@ -89,7 +91,7 @@ export function AdminDashboard({ students, income }) {
       <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
         <StatCard label="Activos"    value={activos.length} sub={`${vencidos.length} vencidos`} icon="✅" onClick={()=>setDetalle("activos")}/>
         <StatCard label="Clases"     value={totalCl}        sub="realizadas"  icon="🎾" color="#60a5fa" onClick={()=>setDetalle("clases")}/>
-        <StatCard label="Último mes" value={fmt(lastMes.total)} sub={lastMes.mes} icon="💰" onClick={()=>setDetalle("ingresos")}/>
+        <StatCard label={`Cobrado ${mesNombre}`} value={fmt(cobradoMes)} sub="pagos registrados" icon="💰" onClick={()=>setDetalle("ingresos")}/>
         <StatCard label="Asistencia" value={`${promAsist}%`} sub="promedio"    icon="📈" onClick={()=>setDetalle("asistencia")}/>
       </div>
 
@@ -171,7 +173,14 @@ export function AdminDashboard({ students, income }) {
 
             {detalle==="ingresos" && (
               <div>
-                <div style={{fontSize:15,fontWeight:700,color:B.gold,marginBottom:14}}>Ingresos {fmt(totalAnual)}</div>
+                <div style={{fontSize:15,fontWeight:700,color:B.gold,marginBottom:12}}>Ingresos</div>
+                <div style={{background:B.bg,border:`1px solid ${B.goldBorder}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}>
+                    <span style={{color:B.textSub}}>Cobrado en {mesNombre} (pagos registrados)</span>
+                    <span style={{color:B.gold,fontWeight:700}}>{fmtFull(cobradoMes)}</span>
+                  </div>
+                </div>
+                <div style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Registro anual (planilla · incluye cancha) · {fmt(totalAnual)}</div>
                 <div style={{display:"flex",gap:8,marginBottom:14}}>
                   <div style={{flex:1,background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px",textAlign:"center"}}>
                     <div style={{fontSize:16,fontWeight:700,color:B.gold}}>{Math.round(totalProfe/totalAnual*100)}%</div>
