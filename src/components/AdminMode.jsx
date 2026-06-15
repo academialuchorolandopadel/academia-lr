@@ -294,7 +294,7 @@ function AdminAlumnos({ students, onAdd, onUpdate, onDelete, planNames = [] }) {
 function AdminAsistencia({ students, schedule, onUpdate }) {
   const [wk, setWk] = useState(0)
   const hoy     = hoyDDMM()
-  const activeS = students.filter(s => s.estado === "OK" && !s.archivado)
+  const activeS = students.filter(s => !s.archivado)  // OK y vencidos; solo se ocultan los archivados
 
   // Semana Lun–Sáb (con etiqueta corta y completa)
   const cols = useMemo(() => {
@@ -445,7 +445,9 @@ function AdminAsistencia({ students, schedule, onUpdate }) {
                   <td style={{padding:"8px 16px"}}>
                     <div style={{display:"flex",alignItems:"center",gap:7}}>
                       <div style={{width:24,height:24,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:B.gold,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
-                      <span style={{fontSize:11,color:B.text,whiteSpace:"nowrap"}}>{s.nombre}</span>
+                      <span style={s.estado==="VENCIDO"
+                        ? {fontSize:11,color:"#f87171",whiteSpace:"nowrap",border:`1px solid ${B.dangerBorder}`,background:B.dangerBg,padding:"2px 7px",borderRadius:6,fontWeight:600}
+                        : {fontSize:11,color:B.text,whiteSpace:"nowrap"}}>{s.nombre}</span>
                     </div>
                   </td>
                   {dispCols.map((c) => {
