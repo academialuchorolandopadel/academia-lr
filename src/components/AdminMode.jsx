@@ -648,7 +648,7 @@ function AdminAgenda({ schedule, students, onSave }) {
 
   const horas = [...(schedule.horas || [])].sort((a,b) => toMin(a) - toMin(b))
   const asign = schedule.asign || {}
-  const activos = students.filter(s => s.estado === "OK" && !s.archivado)
+  const activos = students.filter(s => !s.archivado)  // OK y vencidos; solo se ocultan los archivados
   const keyOf = (dia, hora) => `${dia}|${hora}`
 
   const toggle = (dia, hora, nombre) => {
@@ -678,7 +678,7 @@ function AdminAgenda({ schedule, students, onSave }) {
     <div style={{padding:24}}>
       <div style={{marginBottom:16}}>
         <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Agenda semanal</h1>
-        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Tocá una celda para asignar alumnos activos</p>
+        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Tocá una celda para asignar alumnos</p>
       </div>
 
       {/* Agregar horario */}
@@ -746,7 +746,9 @@ function AdminAgenda({ schedule, students, onSave }) {
                   <button key={s.id} onClick={()=>toggle(sel.dia,sel.hora,s.nombre)}
                     style={{display:"flex",alignItems:"center",gap:9,padding:"9px 11px",borderRadius:9,border:`1px solid ${on?B.gold:B.border}`,background:on?B.goldBg:"transparent",cursor:"pointer",textAlign:"left"}}>
                     <div style={{width:26,height:26,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff"}}>{s.iniciales}</div>
-                    <span style={{flex:1,fontSize:13,color:B.text}}>{s.nombre}</span>
+                    <span style={s.estado==="VENCIDO"
+                      ? {fontSize:13,color:"#f87171",border:`1px solid ${B.dangerBorder}`,background:B.dangerBg,padding:"2px 8px",borderRadius:6,fontWeight:600}
+                      : {flex:1,fontSize:13,color:B.text}}>{s.nombre}</span>
                     {on && <span style={{color:B.gold,fontWeight:700}}>✓</span>}
                   </button>
                 )
