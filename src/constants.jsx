@@ -27,6 +27,10 @@ export function LogoLR({ size = 40, color = B.gold }) {
   )
 }
 
+// ─── Tipos de clase y capacidad ──────────────────────────────────────────────
+export const CAP_TIPO   = { individual: 1, pareja: 2, grupal: 4 }
+export const TIPO_LABEL = { individual: "Individual", pareja: "Pareja", grupal: "Grupal" }
+
 // ─── StatCard (tarjeta de métrica, opcionalmente clickeable) ──────────────────
 export function StatCard({ label, value, sub, icon, color, onClick }) {
   const c = color || B.gold
