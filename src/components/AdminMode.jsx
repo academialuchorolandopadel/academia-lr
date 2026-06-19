@@ -645,6 +645,7 @@ const toMin = (h) => { const [hh, mm] = String(h).split(":").map(Number); return
 function AdminAgenda({ schedule, students, onSave }) {
   const [sel, setSel]           = useState(null)   // {dia, hora} celda en edición
   const [nuevaHora, setNuevaHora] = useState("")
+  const [qPicker, setQPicker]   = useState("")
 
   const horas = [...(schedule.horas || [])].sort((a,b) => toMin(a) - toMin(b))
   const asign = schedule.asign || {}
@@ -714,7 +715,7 @@ function AdminAgenda({ schedule, students, onSave }) {
                 {DIAS_LABEL.map(d => {
                   const lista = asign[keyOf(d,h)] || []
                   return (
-                    <td key={d} onClick={()=>setSel({dia:d,hora:h})}
+                    <td key={d} onClick={()=>{ setSel({dia:d,hora:h}); setQPicker("") }}
                       style={{padding:"6px 6px",textAlign:"center",cursor:"pointer",verticalAlign:"top",minWidth:90}}>
                       <div style={{display:"flex",flexDirection:"column",gap:3,minHeight:30}}>
                         {lista.map(n => (
@@ -738,9 +739,11 @@ function AdminAgenda({ schedule, students, onSave }) {
           <div onClick={e=>e.stopPropagation()}
             style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:20,width:"100%",maxWidth:360,maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
             <div style={{fontSize:14,fontWeight:700,color:B.gold,marginBottom:2}}>{sel.dia} · {sel.hora}</div>
-            <div style={{fontSize:11,color:B.textSub,marginBottom:12}}>Tocá para agregar o quitar</div>
+            <div style={{fontSize:11,color:B.textSub,marginBottom:10}}>Tocá para agregar o quitar</div>
+            <input value={qPicker} onChange={e=>setQPicker(e.target.value)} placeholder="🔍 Buscar alumno..."
+              style={{padding:"8px 11px",marginBottom:10,background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none"}}/>
             <div style={{overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
-              {activos.map(s => {
+              {activos.filter(s => s.nombre.toLowerCase().includes(qPicker.toLowerCase())).map(s => {
                 const on = (asign[keyOf(sel.dia,sel.hora)]||[]).includes(s.nombre)
                 return (
                   <button key={s.id} onClick={()=>toggle(sel.dia,sel.hora,s.nombre)}
