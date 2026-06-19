@@ -1,13 +1,27 @@
 // src/components/StudentMode.jsx
 import { useState, useEffect } from "react"
-import { B, AT, NOTE_STYLE, fmtFull, getNotifications, LogoLR } from "../constants"
+import { B, AT, NOTE_STYLE, fmtFull, getNotifications, LogoLR, DIAS_LABEL, CAP_TIPO, TIPO_LABEL } from "../constants"
 
-export function StudentMode({ student, onLogout, consejos = [], onLoadNotas, onAddNota, onDeleteNota }) {
+export function StudentMode({ student, onLogout, consejos = [], schedule = {}, onLoadNotas, onAddNota, onDeleteNota }) {
   const [tab, setTab] = useState("cuenta")
 
   const notes      = getNotifications(student)
   const badgeCount = notes.filter(n => n.type==="danger" || n.type==="warning").length
   const disp       = student.abonadas - student.realizadas
+
+  // Horarios con lugar disponible (solo los que tienen tipo asignado)
+  const toMinS = (h) => { const [hh,mm] = String(h).split(":").map(Number); return hh*60+(mm||0) }
+  const horariosLibres = []
+  DIAS_LABEL.forEach(dia => {
+    ;[...(schedule.horas || [])].sort((a,b)=>toMinS(a)-toMinS(b)).forEach(hora => {
+      const k = `${dia}|${hora}`
+      const tipo = (schedule.tipos || {})[k]
+      if (!tipo) return
+      const cap = CAP_TIPO[tipo]
+      const ocup = (schedule.asign || {})[k] || []
+      if (ocup.length < cap) horariosLibres.push({ dia, hora, tipo, cap, ocup, libres: cap - ocup.length })
+    })
+  })
   const pct        = Math.round((student.realizadas / Math.max(student.abonadas,1)) * 100)
   const presentes  = student.asistencia.filter(a => a.m === "P").length
   const totalC     = student.asistencia.filter(a => a.m !== "").length
@@ -49,6 +63,7 @@ export function StudentMode({ student, onLogout, consejos = [], onLoadNotas, onA
     { id:"avisos",     label:"Avisos",     icon:"🔔", badge:badgeCount },
     { id:"asistencia", label:"Asistencia", icon:"◉" },
     { id:"pagos",      label:"Pagos",      icon:"◇" },
+    { id:"horarios",   label:"Horarios",   icon:"📅" },
     { id:"consejos",   label:"Consejos",   icon:"💡" },
     { id:"notas",      label:"Mis notas",  icon:"📝" },
   ]
@@ -233,6 +248,36 @@ export function StudentMode({ student, onLogout, consejos = [], onLoadNotas, onA
                 <div style={{fontSize:12,color:B.textSub,marginTop:5}}>Consultá con tu profe.</div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Tab: Horarios disponibles */}
+        {tab==="horarios" && (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontSize:12,color:B.textSub,marginBottom:2}}>Horarios con lugar libre. Consultá con el profe para anotarte.</div>
+            {horariosLibres.length === 0 ? (
+              <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:14,padding:28,textAlign:"center"}}>
+                <div style={{fontSize:32,marginBottom:10}}>📅</div>
+                <div style={{fontSize:14,color:B.textSub}}>No hay horarios con lugar disponible por ahora.</div>
+              </div>
+            ) : horariosLibres.map((s2, i) => (
+              <div key={i} style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:"14px 16px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <div style={{fontSize:14,fontWeight:700,color:B.text}}>{s2.dia} · {s2.hora}</div>
+                  <span style={{fontSize:10,fontWeight:700,padding:"3px 9px",borderRadius:20,background:B.goldBg,color:B.gold,border:`1px solid ${B.goldBorder}`}}>{TIPO_LABEL[s2.tipo]}</span>
+                </div>
+                <div style={{fontSize:12,color:B.gold,fontWeight:600,marginBottom:s2.ocup.length?8:0}}>
+                  {s2.libres} lugar{s2.libres>1?"es":""} disponible{s2.libres>1?"s":""} de {s2.cap}
+                </div>
+                {s2.ocup.length>0 && (
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                    {s2.ocup.map(n => (
+                      <span key={n} style={{fontSize:11,color:B.textSub,background:B.bg,border:`1px solid ${B.border}`,borderRadius:6,padding:"2px 8px"}}>{n}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
