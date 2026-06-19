@@ -6,7 +6,7 @@ import {
 } from "recharts"
 import {
   B, AT, LogoLR, INCOME_DATA, MESES, StatCard,
-  DIAS_LABEL, hoyDDMM, dateKey, diaCorto,
+  DIAS_LABEL, hoyDDMM, dateKey, diaCorto, CAP_TIPO, TIPO_LABEL,
   fmt, fmtFull, initials, avatarColor,
 } from "../constants"
 import { AdminDashboard } from "./AdminDashboard"
@@ -459,6 +459,14 @@ function AdminAgenda({ schedule, students, onSave }) {
   const asign = schedule.asign || {}
   const activos = students.filter(s => !s.archivado)  // OK y vencidos; solo se ocultan los archivados
   const keyOf = (dia, hora) => `${dia}|${hora}`
+  const tipos = schedule.tipos || {}
+  const capDe = (k) => CAP_TIPO[tipos[k]] || 0
+  const setTipo = (dia, hora, tipo) => {
+    const k = keyOf(dia, hora)
+    const next = { ...tipos }
+    if (tipo) next[k] = tipo; else delete next[k]
+    onSave({ ...schedule, tipos: next })
+  }
 
   const toggle = (dia, hora, nombre) => {
     const k = keyOf(dia, hora)
@@ -479,15 +487,16 @@ function AdminAgenda({ schedule, students, onSave }) {
   const removeHora = (h) => {
     if (!window.confirm(`¿Eliminar el horario ${h} y sus asignaciones?`)) return
     const nextAsign = { ...asign }
-    DIAS_LABEL.forEach(d => delete nextAsign[keyOf(d, h)])
-    onSave({ horas: horas.filter(x => x !== h), asign: nextAsign })
+    const nextTipos = { ...tipos }
+    DIAS_LABEL.forEach(d => { delete nextAsign[keyOf(d, h)]; delete nextTipos[keyOf(d, h)] })
+    onSave({ ...schedule, horas: horas.filter(x => x !== h), asign: nextAsign, tipos: nextTipos })
   }
 
   return (
     <div style={{padding:24}}>
       <div style={{marginBottom:16}}>
         <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Agenda semanal</h1>
-        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Tocá una celda para asignar alumnos</p>
+        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Tocá una celda para elegir el tipo y asignar alumnos</p>
       </div>
 
       {/* Agregar horario */}
@@ -526,6 +535,11 @@ function AdminAgenda({ schedule, students, onSave }) {
                     <td key={d} onClick={()=>{ setSel({dia:d,hora:h}); setQPicker("") }}
                       style={{padding:"6px 6px",textAlign:"center",cursor:"pointer",verticalAlign:"top",minWidth:90}}>
                       <div style={{display:"flex",flexDirection:"column",gap:3,minHeight:30}}>
+                        {tipos[keyOf(d,h)] && (
+                          <div style={{fontSize:8,fontWeight:700,color:lista.length>=CAP_TIPO[tipos[keyOf(d,h)]]?"#f87171":B.gold,textTransform:"uppercase",letterSpacing:0.3}}>
+                            {TIPO_LABEL[tipos[keyOf(d,h)]]} {lista.length}/{CAP_TIPO[tipos[keyOf(d,h)]]}
+                          </div>
+                        )}
                         {lista.map(n => (
                           <div key={n} style={{background:avatarColor(n),borderRadius:6,padding:"3px 6px",fontSize:10,color:"#fff",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{n}</div>
                         ))}
@@ -546,8 +560,29 @@ function AdminAgenda({ schedule, students, onSave }) {
           style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
           <div onClick={e=>e.stopPropagation()}
             style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:20,width:"100%",maxWidth:360,maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
-            <div style={{fontSize:14,fontWeight:700,color:B.gold,marginBottom:2}}>{sel.dia} · {sel.hora}</div>
-            <div style={{fontSize:11,color:B.textSub,marginBottom:10}}>Tocá para agregar o quitar</div>
+            <div style={{fontSize:14,fontWeight:700,color:B.gold,marginBottom:8}}>{sel.dia} · {sel.hora}</div>
+            <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Tipo de clase</div>
+            <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+              {["individual","pareja","grupal"].map(t => {
+                const on = tipos[keyOf(sel.dia,sel.hora)] === t
+                return (
+                  <button key={t} onClick={()=>setTipo(sel.dia,sel.hora,t)}
+                    style={{padding:"6px 10px",borderRadius:7,border:`1px solid ${on?B.gold:B.border}`,background:on?B.goldBg:B.bgCard,color:on?B.gold:B.textSub,fontSize:11,fontWeight:on?700:400,cursor:"pointer"}}>
+                    {TIPO_LABEL[t]} ({CAP_TIPO[t]})
+                  </button>
+                )
+              })}
+              {tipos[keyOf(sel.dia,sel.hora)] && (
+                <button onClick={()=>setTipo(sel.dia,sel.hora,null)}
+                  style={{padding:"6px 10px",borderRadius:7,border:`1px solid ${B.border}`,background:"transparent",color:B.textMuted,fontSize:11,cursor:"pointer"}}>Sin tipo</button>
+              )}
+            </div>
+            {tipos[keyOf(sel.dia,sel.hora)] && (() => {
+              const cnt = (asign[keyOf(sel.dia,sel.hora)]||[]).length
+              const cap = capDe(keyOf(sel.dia,sel.hora))
+              return <div style={{fontSize:11,color:cnt>=cap?"#f87171":B.textSub,marginBottom:8}}>Ocupados {cnt}/{cap}{cnt>=cap?" · COMPLETO":` · ${cap-cnt} lugar(es) libre(s)`}</div>
+            })()}
+            <div style={{fontSize:11,color:B.textSub,marginBottom:10}}>Tocá un alumno para agregar o quitar</div>
             <input value={qPicker} onChange={e=>setQPicker(e.target.value)} placeholder="🔍 Buscar alumno..."
               style={{padding:"8px 11px",marginBottom:10,background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none"}}/>
             <div style={{overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
