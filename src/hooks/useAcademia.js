@@ -16,8 +16,10 @@ const dateKey = (f) => {
   const [d, m] = String(f).split('/').map(Number)
   return (m || 0) * 100 + (d || 0)
 }
+// Clases dadas (consumen del paquete): P (presente), I (injustificada, no avisó),
+// R (recuperada). X (a reprogramar) NO cuenta: queda pendiente de recuperar.
 const countRealizadas = (asistencia) =>
-  asistencia.filter(a => a.m === 'P' || a.m === 'R').length
+  asistencia.filter(a => a.m === 'P' || a.m === 'I' || a.m === 'R').length
 
 // Fecha local en formato ISO YYYY-MM-DD
 const isoLocal = (dt = new Date()) =>
