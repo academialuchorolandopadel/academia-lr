@@ -143,7 +143,7 @@ export default function App() {
       {mode === null      && <PinPad     onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
       {mode === "profe"   && <ProfeAuth  onSuccess={() => setMode("admin")} onCancel={() => setMode(null)}/>}
       {mode === "admin"   && <AdminMode  students={students} schedule={schedule} planes={planes} consejos={consejos} onUpdate={updateStudent} onAddStudent={addStudent} onDeleteStudent={deleteStudent} onSaveSchedule={saveSchedule} onSavePlanes={savePlanes} onSaveConsejos={saveConsejos} onAddPayment={addPayment} onRemovePayment={removePayment} onLogout={handleLogout}/>}
-      {mode === "student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout} consejos={consejos} onLoadNotas={loadNotas} onAddNota={addNota} onDeleteNota={deleteNota}/>}
+      {mode === "student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout} consejos={consejos} schedule={schedule} onLoadNotas={loadNotas} onAddNota={addNota} onDeleteNota={deleteNota}/>}
     </>
   )
 }
