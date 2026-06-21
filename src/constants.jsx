@@ -12,18 +12,10 @@ export const B = {
 }
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
-export function LogoLR({ size = 40, color = B.gold }) {
+export function LogoLR({ size = 40 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
-      <rect x="6" y="6" width="88" height="88" rx="4" stroke={color} strokeWidth="5" fill="none"/>
-      <line x1="6" y1="72" x2="94" y2="72" stroke={color} strokeWidth="3.5"/>
-      <line x1="50" y1="6" x2="50" y2="16" stroke={color} strokeWidth="3.5"/>
-      <line x1="50" y1="72" x2="50" y2="94" stroke={color} strokeWidth="3.5"/>
-      <path d="M14 18 L14 66 L44 66" stroke={color} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-      <path d="M54 18 L54 66" stroke={color} strokeWidth="8" strokeLinecap="round" fill="none"/>
-      <path d="M54 18 L74 18 Q86 18 86 32 Q86 46 74 46 L54 46" stroke={color} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-      <path d="M68 46 L86 66" stroke={color} strokeWidth="8" strokeLinecap="round" fill="none"/>
-    </svg>
+    <img src={`${import.meta.env.BASE_URL}lr-mark.png`} alt="LR"
+      width={size} height={size} style={{display:"block",objectFit:"contain"}}/>
   )
 }
 
