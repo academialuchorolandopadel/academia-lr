@@ -1,6 +1,6 @@
 // src/components/PinPad.jsx
 import { useState } from "react"
-import { B, LogoLR } from "../constants"
+import { B } from "../constants"
 
 export function PinPad({ onSubmit, error, setError }) {
   const [pin, setPin] = useState("")
@@ -25,11 +25,9 @@ export function PinPad({ onSubmit, error, setError }) {
       </div>
       <div style={{position:"relative",width:"100%",maxWidth:340,background:"rgba(10,20,40,0.85)",backdropFilter:"blur(24px)",border:`1px solid ${B.goldBorder}`,borderRadius:24,padding:"40px 28px 36px",boxShadow:"0 40px 80px rgba(0,0,0,0.6)"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
-            <LogoLR size={64}/>
-          </div>
-          <div style={{fontSize:20,fontWeight:700,color:B.gold,letterSpacing:3,textTransform:"uppercase"}}>
-            Academia LR
+          <div style={{display:"flex",justifyContent:"center",marginBottom:14}}>
+            <img src={`${import.meta.env.BASE_URL}lr-vertical.png`} alt="Academia Lucho Rolando"
+              style={{width:210,maxWidth:"72%",height:"auto"}}/>
           </div>
           <div style={{fontSize:11,color:B.textSub,marginTop:4,letterSpacing:2,textTransform:"uppercase"}}>
             Ingresá tu PIN
