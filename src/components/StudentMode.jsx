@@ -1,6 +1,6 @@
 // src/components/StudentMode.jsx
 import { useState, useEffect } from "react"
-import { B, AT, NOTE_STYLE, fmtFull, getNotifications, LogoLR, DIAS_LABEL, CAP_TIPO, TIPO_LABEL } from "../constants"
+import { B, AT, NOTE_STYLE, fmtFull, fmtFechaCorta, getNotifications, LogoLR, DIAS_LABEL, CAP_TIPO, TIPO_LABEL } from "../constants"
 
 export function StudentMode({ student, onLogout, consejos = [], schedule = {}, onLoadNotas, onAddNota, onDeleteNota }) {
   const [tab, setTab] = useState("cuenta")
@@ -215,28 +215,29 @@ export function StudentMode({ student, onLogout, consejos = [], schedule = {}, o
         {/* Tab: Pagos */}
         {tab==="pagos" && (
           <div>
-            {Object.keys(student.pagos||{}).length > 0 ? (
+            {(student.pagosDetalle||[]).length > 0 ? (
               <>
                 <div style={{background:B.goldBg,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:"18px 22px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div>
-                    <div style={{fontSize:10,color:B.gold,letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>Total abonado 2026</div>
+                    <div style={{fontSize:10,color:B.gold,letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>Total abonado</div>
                     <div style={{fontSize:28,fontWeight:700,color:B.text}}>
-                      {fmtFull(Object.values(student.pagos).reduce((a,v) => a+v, 0))}
+                      {fmtFull((student.pagosDetalle||[]).reduce((a,p) => a+(p.monto||0), 0))}
                     </div>
                   </div>
                   <span style={{fontSize:32}}>💰</span>
                 </div>
+                <div style={{fontSize:11,color:B.textSub,marginBottom:8}}>Tus paquetes (cada pago inicia un paquete)</div>
                 <div style={{display:"flex",flexDirection:"column",gap:7}}>
-                  {Object.entries(student.pagos).map(([mes,monto]) => (
-                    <div key={mes} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"12px 14px"}}>
+                  {(student.pagosDetalle||[]).map((p,i) => (
+                    <div key={p.id||i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"12px 14px"}}>
                       <div style={{display:"flex",alignItems:"center",gap:10}}>
-                        <div style={{width:30,height:30,borderRadius:9,background:B.goldBg,border:`1px solid ${B.goldBorder}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>📅</div>
+                        <div style={{width:34,height:34,borderRadius:9,background:B.goldBg,border:`1px solid ${B.goldBorder}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>📅</div>
                         <div>
-                          <div style={{fontSize:13,color:B.text}}>{mes}</div>
-                          <div style={{fontSize:9,color:B.gold,letterSpacing:1,textTransform:"uppercase"}}>PAGADO</div>
+                          <div style={{fontSize:13,color:B.text,fontWeight:600}}>{fmtFechaCorta(p.fecha)}</div>
+                          <div style={{fontSize:11,color:B.gold}}>{p.clases!=null?`${p.clases} clase${p.clases===1?"":"s"} pagadas`:"PAGADO"}</div>
                         </div>
                       </div>
-                      <div style={{fontSize:14,fontWeight:700,color:B.gold}}>{fmtFull(monto)}</div>
+                      <div style={{fontSize:14,fontWeight:700,color:B.gold}}>{fmtFull(p.monto)}</div>
                     </div>
                   ))}
                 </div>
