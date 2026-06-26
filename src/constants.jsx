@@ -19,6 +19,9 @@ export function LogoLR({ size = 40 }) {
   )
 }
 
+// Fecha "YYYY-MM-DD" → "DD/MM/YYYY"
+export const fmtFechaCorta = (f) => f ? `${String(f).slice(8,10)}/${String(f).slice(5,7)}/${String(f).slice(0,4)}` : "Sin fecha"
+
 // ─── Tipos de clase y capacidad ──────────────────────────────────────────────
 export const CAP_TIPO   = { individual: 1, pareja: 2, grupal: 4 }
 export const TIPO_LABEL = { individual: "Individual", pareja: "Pareja", grupal: "Grupal" }
