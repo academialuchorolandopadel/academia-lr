@@ -7,11 +7,12 @@ import {
 import {
   B, AT, LogoLR, INCOME_DATA, MESES, StatCard,
   DIAS_LABEL, hoyDDMM, dateKey, diaCorto, CAP_TIPO, TIPO_LABEL,
-  fmt, fmtFull, initials, avatarColor,
+  fmt, fmtFull, fmtFechaCorta, initials, avatarColor,
 } from "../constants"
 import { AdminDashboard } from "./AdminDashboard"
 import { AdminConsejos } from "./AdminConsejos"
 import { AdminAsistencia } from "./AdminAsistencia"
+import { AdminPagos } from "./AdminPagos"
 
 const ADMIN_NAV = [
   { id:"dashboard",  label:"Dashboard",  emoji:"▦" },
@@ -91,7 +92,7 @@ function AlumnoForm({ inicial, titulo, onGuardar, onCancelar, error, planOpts = 
 function Ficha({ s, onEditar, onArchivar, onBaja, onCerrar }) {
   const disp = s.abonadas - s.realizadas
   const cuenta = (m) => s.asistencia.filter(a => a.m === m).length
-  const pagos = Object.entries(s.pagos || {})
+  const pagos = s.pagosDetalle || []
   return (
     <div>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
@@ -129,10 +130,16 @@ function Ficha({ s, onEditar, onArchivar, onBaja, onCerrar }) {
 
       {pagos.length>0 && (
         <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
-          <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Pagos</div>
-          {pagos.map(([m,v])=>(
-            <div key={m} style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
-              <span style={{color:B.textSub}}>{m}</span><span style={{color:B.gold,fontWeight:600}}>{fmtFull(v)}</span>
+          <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Paquetes / Pagos</div>
+          {pagos.map((pg,i)=>(
+            <div key={pg.id||i} style={{paddingBottom:7,marginBottom:7,borderBottom:i<pagos.length-1?`1px solid ${B.border}`:"none"}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:13}}>
+                <span style={{color:B.text,fontWeight:600}}>{fmtFechaCorta(pg.fecha)}</span>
+                <span style={{color:B.gold,fontWeight:700}}>{fmtFull(pg.monto)}</span>
+              </div>
+              <div style={{fontSize:11,color:B.textSub,marginTop:2}}>
+                {pg.clases!=null ? `${pg.clases} clase${pg.clases===1?"":"s"}` : "clases no especificadas"}{pg.mes?` · ${pg.mes}`:""}
+              </div>
             </div>
           ))}
         </div>
@@ -284,162 +291,6 @@ function AdminAlumnos({ students, onAdd, onUpdate, onDelete, planNames = [] }) {
             {sel && !editing && (
               <Ficha s={sel} onEditar={()=>setEditing(true)} onArchivar={archivar} onBaja={darDeBaja} onCerrar={cerrarTodo}/>
             )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Pagos ────────────────────────────────────────────────────────────────────
-function AdminPagos({ students, onAddPayment, onRemovePayment }) {
-  const mesActual = MESES[new Date().getMonth()]
-  const hoyISO = (() => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` })()
-  const [open, setOpen]     = useState(false)
-  const [sid, setSid]       = useState("")
-  const [mes, setMes]       = useState(mesActual)
-  const [monto, setMonto]   = useState("")
-  const [clases, setClases] = useState("")
-  const [fechaPago, setFechaPago] = useState(hoyISO)
-
-  const conPagos = students.filter(s => Object.keys(s.pagos || {}).length > 0)
-  const cols = MESES.filter(m => students.some(s => s.pagos && s.pagos[m]))
-
-  const abrir = (studentId = "", mesSel = mesActual) => {
-    const st = students.find(s => s.id === studentId)
-    setSid(studentId)
-    setMes(mesSel)
-    setMonto(st && st.pagos && st.pagos[mesSel] ? String(st.pagos[mesSel]) : "")
-    setClases("")
-    setFechaPago(hoyISO)
-    setOpen(true)
-  }
-
-  const guardar = () => {
-    if (!sid || !mes || !(Number(monto) > 0)) return
-    onAddPayment(sid, mes, Number(monto), Number(clases) || 0, fechaPago)
-    setOpen(false)
-  }
-
-  const sel = students.find(s => s.id === sid)
-  const yaExiste = sel && sel.pagos && sel.pagos[mes]
-
-  const quitar = () => {
-    if (sid && mes && window.confirm(`¿Quitar el pago de ${mes} de ${sel.nombre}?`)) {
-      onRemovePayment(sid, mes)
-      setOpen(false)
-    }
-  }
-
-  return (
-    <div style={{padding:24}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
-        <div>
-          <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Pagos</h1>
-          <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Tocá un monto para editarlo · 2026</p>
-        </div>
-        <button onClick={() => abrir()}
-          style={{padding:"9px 16px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
-          + Registrar pago
-        </button>
-      </div>
-
-      <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,overflow:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead>
-            <tr style={{borderBottom:`1px solid ${B.border}`}}>
-              <th style={{padding:"10px 16px",textAlign:"left",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase"}}>Alumno</th>
-              {cols.map(l => <th key={l} style={{padding:"10px 12px",textAlign:"right",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase"}}>{l.slice(0,3)}</th>)}
-              <th style={{padding:"10px 12px",textAlign:"right",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase"}}>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {conPagos.map((s,i) => {
-              const total = cols.reduce((a,m) => a + ((s.pagos && s.pagos[m]) || 0), 0)
-              return (
-                <tr key={s.id} style={{borderBottom:i<conPagos.length-1?`1px solid ${B.border}`:"none"}}>
-                  <td style={{padding:"11px 16px"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <div style={{width:26,height:26,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:B.gold,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
-                      <span style={{fontSize:12,color:B.text}}>{s.nombre}</span>
-                    </div>
-                  </td>
-                  {cols.map(m => (
-                    <td key={m} onClick={() => abrir(s.id, m)} style={{padding:"11px 12px",textAlign:"right",cursor:"pointer"}}>
-                      {s.pagos && s.pagos[m]
-                        ? <span style={{fontSize:12,color:B.gold,fontWeight:500}}>{fmt(s.pagos[m])}</span>
-                        : <span style={{fontSize:12,color:B.textMuted}}>—</span>}
-                    </td>
-                  ))}
-                  <td style={{padding:"11px 12px",textAlign:"right"}}>
-                    <span style={{fontSize:12,fontWeight:700,color:B.text}}>{fmt(total)}</span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-          <tfoot>
-            <tr style={{borderTop:`1px solid ${B.border}`,background:B.bg}}>
-              <td style={{padding:"10px 16px",fontSize:11,fontWeight:700,color:B.textSub}}>TOTALES</td>
-              {cols.map(m => {
-                const t = conPagos.reduce((a,s) => a + ((s.pagos && s.pagos[m]) || 0), 0)
-                return <td key={m} style={{padding:"10px 12px",textAlign:"right",fontSize:11,fontWeight:700,color:B.gold}}>{t ? fmt(t) : "—"}</td>
-              })}
-              <td style={{padding:"10px 12px",textAlign:"right",fontSize:12,fontWeight:700,color:B.gold}}>
-                {fmt(conPagos.reduce((a,s) => a + cols.reduce((b,m) => b + ((s.pagos && s.pagos[m]) || 0), 0), 0))}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      {/* Modal registrar / editar pago */}
-      {open && (
-        <div onClick={() => setOpen(false)}
-          style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
-          <div onClick={e => e.stopPropagation()}
-            style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:22,width:"100%",maxWidth:360}}>
-            <div style={{fontSize:15,fontWeight:700,color:B.gold,marginBottom:16}}>Registrar pago</div>
-
-            <label style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Alumno</label>
-            <select value={sid} onChange={e => abrir(e.target.value, mes)}
-              style={{width:"100%",margin:"5px 0 12px",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14}}>
-              <option value="">Elegí un alumno…</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-            </select>
-
-            <label style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Mes</label>
-            <select value={mes} onChange={e => { setMes(e.target.value); const st = students.find(x=>x.id===sid); setMonto(st && st.pagos && st.pagos[e.target.value] ? String(st.pagos[e.target.value]) : "") }}
-              style={{width:"100%",margin:"5px 0 12px",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14}}>
-              {MESES.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-
-            <label style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Monto (₲)</label>
-            <input type="number" inputMode="numeric" value={monto} onChange={e => setMonto(e.target.value)} placeholder="650000"
-              style={{width:"100%",margin:"5px 0 12px",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14,outline:"none"}}/>
-
-            <label style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Sumar clases al paquete (opcional)</label>
-            <input type="number" inputMode="numeric" value={clases} onChange={e => setClases(e.target.value)} placeholder="0"
-              style={{width:"100%",margin:"5px 0 12px",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14,outline:"none"}}/>
-
-            <label style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Fecha del pago</label>
-            <input type="date" value={fechaPago} onChange={e => setFechaPago(e.target.value)}
-              style={{width:"100%",margin:"5px 0 16px",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:14,outline:"none"}}/>
-
-            <button onClick={guardar}
-              style={{width:"100%",padding:"11px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:"pointer"}}>
-              Guardar
-            </button>
-            {yaExiste && (
-              <button onClick={quitar}
-                style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.dangerBorder}`,background:B.dangerBg,color:"#f87171",fontSize:13,fontWeight:600,cursor:"pointer"}}>
-                Quitar este pago
-              </button>
-            )}
-            <button onClick={() => setOpen(false)}
-              style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:13,cursor:"pointer"}}>
-              Cancelar
-            </button>
           </div>
         </div>
       )}
@@ -811,7 +662,7 @@ function AdminTopNav({ active, onNav, onLogout }) {
 }
 
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
-export function AdminMode({ students, schedule, planes, consejos, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onAddPayment, onRemovePayment, onLogout }) {
+export function AdminMode({ students, schedule, planes, consejos, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
   const isMobile = useIsMobile()
   const planNames = (planes || []).map(p => p.nombre)
@@ -821,7 +672,7 @@ export function AdminMode({ students, schedule, planes, consejos, onUpdate, onAd
       {view==="dashboard"  && <AdminDashboard  students={students} income={INCOME_DATA}/>}
       {view==="alumnos"    && <AdminAlumnos    students={students} onAdd={onAddStudent} onUpdate={onUpdate} onDelete={onDeleteStudent} planNames={planNames}/>}
       {view==="asistencia" && <AdminAsistencia students={students} schedule={schedule} onUpdate={onUpdate}/>}
-      {view==="pagos"      && <AdminPagos      students={students} onAddPayment={onAddPayment} onRemovePayment={onRemovePayment}/>}
+      {view==="pagos"      && <AdminPagos      students={students} onAddPayment={onAddPayment} onUpdatePayment={onUpdatePayment} onRemovePayment={onRemovePayment}/>}
       {view==="agenda"     && <AdminAgenda     schedule={schedule} students={students} onSave={onSaveSchedule}/>}
       {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
       {view==="planes"     && <AdminPlanes     planes={planes} onSave={onSavePlanes}/>}
