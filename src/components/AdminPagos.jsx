@@ -7,44 +7,36 @@ const inp = {width:"100%",margin:"4px 0 12px",padding:"10px",background:B.bg,bor
 const lbl = {fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1}
 
 export function AdminPagos({ students, onAddPayment, onUpdatePayment, onRemovePayment }) {
-  const [search, setSearch] = useState("")
-  const [nuevo, setNuevo]   = useState(false)
-  const [sel, setSel]       = useState(null)      // registro seleccionado
+  const [nuevo, setNuevo]       = useState(false)
+  const [sel, setSel]           = useState(null)
   const [editando, setEditando] = useState(false)
 
-  // form
   const [fSid, setFSid]       = useState("")
   const [fMonto, setFMonto]   = useState("")
   const [fClases, setFClases] = useState("")
   const [fFecha, setFFecha]   = useState(hoyISO())
 
-  const activos = students.filter(s => !s.archivado)
+  const activos  = students.filter(s => !s.archivado)
+  const conPagos = students.filter(s => (s.pagosDetalle || []).length > 0)
+                           .sort((a,b) => a.nombre.localeCompare(b.nombre))
+  const cols = MESES.filter(m => students.some(s => (s.pagosDetalle || []).some(p => p.mes === m)))
+  const pagosDe = (s, m) => (s.pagosDetalle || []).filter(p => p.mes === m)
+  const totalDe = (s) => (s.pagosDetalle || []).reduce((a,p) => a + (p.monto||0), 0)
 
-  // lista plana de todos los pagos
-  const registros = []
-  students.forEach(s => (s.pagosDetalle || []).forEach(pg =>
-    registros.push({ ...pg, sid: s.id, nombre: s.nombre, iniciales: s.iniciales })))
-  registros.sort((a,b) => String(b.fecha||"").localeCompare(String(a.fecha||"")))
-  const filtrados = registros.filter(r => r.nombre.toLowerCase().includes(search.toLowerCase()))
+  const mesNom  = MESES[new Date().getMonth()]
+  const anioAct = new Date().getFullYear(), mesAct = new Date().getMonth()+1
+  const cobradoMes = students.reduce((a,s) => a + (s.pagosDetalle||[])
+    .filter(p => p.fecha && Number(p.fecha.slice(0,4))===anioAct && Number(p.fecha.slice(5,7))===mesAct)
+    .reduce((b,p) => b + (p.monto||0), 0), 0)
 
-  // cobrado este mes
-  const mesNom = MESES[new Date().getMonth()]
-  const anioAct = new Date().getFullYear()
-  const cobradoMes = registros
-    .filter(r => r.fecha && Number(r.fecha.slice(0,4))===anioAct && Number(r.fecha.slice(5,7))===new Date().getMonth()+1)
-    .reduce((a,r) => a + (r.monto||0), 0)
-
-  const abrirNuevo = () => {
-    setFSid(""); setFMonto(""); setFClases(""); setFFecha(hoyISO()); setNuevo(true)
-  }
+  const abrirNuevo = () => { setFSid(""); setFMonto(""); setFClases(""); setFFecha(hoyISO()); setNuevo(true) }
   const guardarNuevo = () => {
     if (!fSid || !(Number(fMonto) > 0)) return
     onAddPayment(fSid, { monto: Number(fMonto), clases: Number(fClases)||0, fecha: fFecha })
     setNuevo(false)
   }
-  const abrirEditar = () => {
-    setFMonto(String(sel.monto)); setFClases(sel.clases!=null?String(sel.clases):""); setFFecha(sel.fecha||hoyISO()); setEditando(true)
-  }
+  const abrirPago = (s, p) => { setSel({ ...p, sid: s.id, nombre: s.nombre, iniciales: s.iniciales }); setEditando(false) }
+  const abrirEditar = () => { setFMonto(String(sel.monto)); setFClases(sel.clases!=null?String(sel.clases):""); setFFecha(sel.fecha||hoyISO()); setEditando(true) }
   const guardarEdit = () => {
     if (!(Number(fMonto) > 0)) return
     onUpdatePayment(sel.sid, sel.id, { monto: Number(fMonto), clases: Number(fClases)||0, fecha: fFecha })
@@ -62,7 +54,7 @@ export function AdminPagos({ students, onAddPayment, onUpdatePayment, onRemovePa
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
         <div>
           <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Pagos</h1>
-          <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Cobrado en {mesNom}: <b style={{color:B.gold}}>{fmtFull(cobradoMes)}</b></p>
+          <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Cobrado en {mesNom}: <b style={{color:B.gold}}>{fmtFull(cobradoMes)}</b> · tocá un monto para ver el detalle</p>
         </div>
         <button onClick={abrirNuevo}
           style={{padding:"9px 16px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
@@ -70,25 +62,63 @@ export function AdminPagos({ students, onAddPayment, onUpdatePayment, onRemovePa
         </button>
       </div>
 
-      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Buscar por alumno..."
-        style={{width:"100%",padding:"9px 12px",marginBottom:14,background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none"}}/>
-
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {filtrados.length===0 && <div style={{fontSize:13,color:B.textMuted,padding:"8px 2px"}}>Sin pagos registrados todavía.</div>}
-        {filtrados.map((r,i) => (
-          <div key={r.sid+"-"+(r.id||i)} onClick={()=>{ setSel(r); setEditando(false) }}
-            style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
-            <div style={{width:30,height:30,background:avatarColor(r.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:B.gold,border:`1px solid ${B.border}`,flexShrink:0}}>{r.iniciales}</div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,color:B.text,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.nombre}</div>
-              <div style={{fontSize:11,color:B.textSub}}>{fmtFechaCorta(r.fecha)} · {r.clases!=null?`${r.clases} clase${r.clases===1?"":"s"}`:"clases s/d"}</div>
-            </div>
-            <div style={{fontSize:14,fontWeight:700,color:B.gold,flexShrink:0}}>{fmt(r.monto)}</div>
-          </div>
-        ))}
+      <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:12,overflow:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead>
+            <tr style={{borderBottom:`1px solid ${B.border}`}}>
+              <th style={{padding:"10px 16px",textAlign:"left",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase",whiteSpace:"nowrap"}}>Alumno</th>
+              {cols.map(m => <th key={m} style={{padding:"10px 12px",textAlign:"right",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase",whiteSpace:"nowrap"}}>{m.slice(0,3)}</th>)}
+              <th style={{padding:"10px 12px",textAlign:"right",fontSize:10,color:B.textSub,fontWeight:600,textTransform:"uppercase"}}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {conPagos.map((s,i) => (
+              <tr key={s.id} style={{borderBottom:i<conPagos.length-1?`1px solid ${B.border}`:"none"}}>
+                <td style={{padding:"11px 16px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{width:26,height:26,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:B.gold,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
+                    <span style={{fontSize:12,color:B.text,whiteSpace:"nowrap"}}>{s.nombre}</span>
+                  </div>
+                </td>
+                {cols.map(m => {
+                  const pays = pagosDe(s, m)
+                  return (
+                    <td key={m} style={{padding:"8px 12px",textAlign:"right",verticalAlign:"top"}}>
+                      {pays.length === 0
+                        ? <span style={{fontSize:12,color:B.textMuted}}>—</span>
+                        : <div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"flex-end"}}>
+                            {pays.map((p,j) => (
+                              <button key={p.id||j} onClick={()=>abrirPago(s,p)}
+                                style={{background:"transparent",border:"none",padding:0,cursor:"pointer",fontSize:12,color:B.gold,fontWeight:500,textDecoration:pays.length>1?"underline":"none"}}>
+                                {fmt(p.monto)}
+                              </button>
+                            ))}
+                          </div>}
+                    </td>
+                  )
+                })}
+                <td style={{padding:"11px 12px",textAlign:"right"}}>
+                  <span style={{fontSize:12,fontWeight:700,color:B.text}}>{fmt(totalDe(s))}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{borderTop:`1px solid ${B.border}`,background:B.bg}}>
+              <td style={{padding:"10px 16px",fontSize:11,fontWeight:700,color:B.textSub}}>TOTALES</td>
+              {cols.map(m => {
+                const t = conPagos.reduce((a,s) => a + pagosDe(s,m).reduce((b,p)=>b+(p.monto||0),0), 0)
+                return <td key={m} style={{padding:"10px 12px",textAlign:"right",fontSize:11,fontWeight:700,color:B.gold}}>{t?fmt(t):"—"}</td>
+              })}
+              <td style={{padding:"10px 12px",textAlign:"right",fontSize:12,fontWeight:700,color:B.gold}}>
+                {fmt(conPagos.reduce((a,s)=>a+totalDe(s),0))}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
+      {conPagos.length===0 && <div style={{fontSize:13,color:B.textMuted,marginTop:14}}>Sin pagos registrados todavía.</div>}
 
-      {/* Modal registrar nuevo */}
       {nuevo && (
         <div onClick={cerrar} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
           <div onClick={e=>e.stopPropagation()} style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:22,width:"100%",maxWidth:360,maxHeight:"88vh",overflowY:"auto"}}>
@@ -110,7 +140,6 @@ export function AdminPagos({ students, onAddPayment, onUpdatePayment, onRemovePa
         </div>
       )}
 
-      {/* Modal ver / editar pago guardado */}
       {sel && (
         <div onClick={cerrar} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
           <div onClick={e=>e.stopPropagation()} style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:22,width:"100%",maxWidth:360,maxHeight:"88vh",overflowY:"auto"}}>
