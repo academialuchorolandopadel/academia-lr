@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
 import { db } from '../firebase'
-import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL, PLANES } from '../constants'
+import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL, PLANES, MESES } from '../constants'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const dateKey = (f) => {
@@ -24,6 +24,15 @@ const countRealizadas = (asistencia) =>
 // Fecha local en formato ISO YYYY-MM-DD
 const isoLocal = (dt = new Date()) =>
   `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
+
+// Pagos: cada registro es un paquete { id, fecha, monto, clases, mes }
+const mesDeFecha = (f) => f ? MESES[Number(String(f).slice(5,7)) - 1] : null
+const sortPagos  = (arr) => [...arr].sort((a, b) => String(b.fecha||'').localeCompare(String(a.fecha||'')))
+const pagosMap   = (detalle) => {
+  const m = {}
+  detalle.forEach(p => { if (p.mes) m[p.mes] = (m[p.mes] || 0) + (p.monto || 0) })
+  return m
+}
 
 // Estado automático: si le quedan clases disponibles → OK, si no → VENCIDO
 const computeEstado = (abonadas, realizadas) =>
@@ -48,13 +57,19 @@ async function fetchAlumnoFull(docSnap) {
     .map(d => ({ f: d.data().fecha, m: d.data().marca }))
     .sort((a, b) => dateKey(a.f) - dateKey(b.f))
   const pagosSnap = await getDocs(collection(db, 'alumnos', docSnap.id, 'pagos'))
-  base.pagos = {}
-  base.pagosDetalle = []
-  pagosSnap.docs.forEach(d => {
+  base.pagosDetalle = pagosSnap.docs.map(d => {
     const x = d.data()
-    base.pagos[x.mes] = x.monto
-    base.pagosDetalle.push({ mes: x.mes, monto: x.monto, fecha: x.fecha || null })
+    const fecha = x.fecha || null
+    return {
+      id: d.id,
+      fecha,
+      monto: x.monto || 0,
+      clases: (x.clases ?? null),
+      mes: x.mes || mesDeFecha(fecha),
+    }
   })
+  base.pagosDetalle = sortPagos(base.pagosDetalle)
+  base.pagos = pagosMap(base.pagosDetalle)
   base.realizadas = countRealizadas(base.asistencia)
   base.estado = computeEstado(base.abonadas, base.realizadas)
   base.archivado = base.archivado || false
@@ -132,34 +147,70 @@ export function useAcademia() {
     syncToFirestore(old, updated).catch(err => console.error('Firestore write error:', err))
   }, [])
 
-  // Registrar / editar un pago. addClases (opcional) suma al paquete (abonadas).
-  const addPayment = useCallback((id, mes, monto, addClases = 0, fecha = null) => {
+  // Registrar un pago = un paquete nuevo { monto, clases, fecha }
+  const addPayment = useCallback((id, { monto, clases = 0, fecha = null }) => {
     const old = studentsRef.current.find(s => s.id === id)
     if (!old) return
-    const extra = Number(addClases) || 0
     const f = fecha || isoLocal()
-    const pagos = { ...(old.pagos || {}), [mes]: Number(monto) }
-    const detalle = [...(old.pagosDetalle || []).filter(p => p.mes !== mes), { mes, monto: Number(monto), fecha: f }]
-    const abonadas = old.abonadas + extra
+    const cl = Number(clases) || 0
+    const mes = mesDeFecha(f)
+    const abonadas = old.abonadas + cl
     const estado = computeEstado(abonadas, old.realizadas)
-    const updated = { ...old, pagos, pagosDetalle: detalle, abonadas, estado }
-    commitLocal(id, updated)
+    const tempId = 'tmp_' + Date.now()
+    const rec = { id: tempId, fecha: f, monto: Number(monto), clases: cl, mes }
+    const detalle = sortPagos([rec, ...(old.pagosDetalle || [])])
+    commitLocal(id, { ...old, pagosDetalle: detalle, pagos: pagosMap(detalle), abonadas, estado })
     ;(async () => {
       try {
-        await setDoc(doc(db, 'alumnos', id, 'pagos', mes), { mes, monto: Number(monto), fecha: f })
-        if (extra) await updateDoc(doc(db, 'alumnos', id), { abonadas, estado })
+        const ref = await addDoc(collection(db, 'alumnos', id, 'pagos'), { fecha: f, monto: Number(monto), clases: cl, mes })
+        const cur = studentsRef.current.find(s => s.id === id)
+        if (cur) {
+          const fixed = (cur.pagosDetalle || []).map(p => p.id === tempId ? { ...p, id: ref.id } : p)
+          commitLocal(id, { ...cur, pagosDetalle: fixed })
+        }
+        await updateDoc(doc(db, 'alumnos', id), { abonadas, estado })
       } catch (e) { console.error('addPayment error:', e) }
     })()
   }, [])
 
-  const removePayment = useCallback((id, mes) => {
+  // Editar un pago existente (ajusta abonadas por la diferencia de clases)
+  const updatePayment = useCallback((id, pagoId, { monto, clases, fecha }) => {
     const old = studentsRef.current.find(s => s.id === id)
     if (!old) return
-    const pagos = { ...(old.pagos || {}) }
-    delete pagos[mes]
-    const detalle = (old.pagosDetalle || []).filter(p => p.mes !== mes)
-    commitLocal(id, { ...old, pagos, pagosDetalle: detalle })
-    deleteDoc(doc(db, 'alumnos', id, 'pagos', mes)).catch(e => console.error('removePayment error:', e))
+    const prev = (old.pagosDetalle || []).find(p => p.id === pagoId)
+    if (!prev) return
+    const f = fecha || prev.fecha || isoLocal()
+    const cl = Number(clases) || 0
+    const mes = mesDeFecha(f)
+    const abonadas = old.abonadas + (cl - (Number(prev.clases) || 0))
+    const estado = computeEstado(abonadas, old.realizadas)
+    const detalle = sortPagos((old.pagosDetalle || []).map(p =>
+      p.id === pagoId ? { ...p, fecha: f, monto: Number(monto), clases: cl, mes } : p))
+    commitLocal(id, { ...old, pagosDetalle: detalle, pagos: pagosMap(detalle), abonadas, estado })
+    ;(async () => {
+      try {
+        await updateDoc(doc(db, 'alumnos', id, 'pagos', pagoId), { fecha: f, monto: Number(monto), clases: cl, mes })
+        await updateDoc(doc(db, 'alumnos', id), { abonadas, estado })
+      } catch (e) { console.error('updatePayment error:', e) }
+    })()
+  }, [])
+
+  // Quitar un pago (resta sus clases de abonadas)
+  const removePayment = useCallback((id, pagoId) => {
+    const old = studentsRef.current.find(s => s.id === id)
+    if (!old) return
+    const prev = (old.pagosDetalle || []).find(p => p.id === pagoId)
+    const cl = Number(prev?.clases) || 0
+    const abonadas = old.abonadas - cl
+    const estado = computeEstado(abonadas, old.realizadas)
+    const detalle = (old.pagosDetalle || []).filter(p => p.id !== pagoId)
+    commitLocal(id, { ...old, pagosDetalle: detalle, pagos: pagosMap(detalle), abonadas, estado })
+    ;(async () => {
+      try {
+        await deleteDoc(doc(db, 'alumnos', id, 'pagos', pagoId))
+        await updateDoc(doc(db, 'alumnos', id), { abonadas, estado })
+      } catch (e) { console.error('removePayment error:', e) }
+    })()
   }, [])
 
   // Alta de alumno nuevo. Devuelve { ok, msg }.
@@ -239,5 +290,5 @@ export function useAcademia() {
     setDoc(doc(db, 'config', 'horarios'), next).catch(err => console.error('Schedule write error:', err))
   }, [])
 
-  return { students, schedule, planes, consejos, loading, error, updateStudent, addStudent, deleteStudent, addPayment, removePayment, saveSchedule, savePlanes, saveConsejos, loadNotas, addNota, deleteNota }
+  return { students, schedule, planes, consejos, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, loadNotas, addNota, deleteNota }
 }
