@@ -291,9 +291,23 @@ export function StudentMode({ student, onLogout, consejos = [], schedule = {}, o
                 <div style={{fontSize:14,color:B.textSub}}>Todavía no hay consejos.</div>
               </div>
             ) : consejos.map((c, i) => (
-              <div key={c.id || i} style={{background:B.goldBg,border:`1px solid ${B.goldBorder}`,borderRadius:14,padding:"16px 18px",display:"flex",gap:12}}>
-                <span style={{fontSize:22,flexShrink:0}}>🎾</span>
-                <div style={{fontSize:13,color:B.text,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{c.texto}</div>
+              <div key={c.id || i} style={{background:B.goldBg,border:`1px solid ${B.goldBorder}`,borderRadius:14,padding:"16px 18px"}}>
+                <div style={{display:"flex",gap:12}}>
+                  <span style={{fontSize:22,flexShrink:0}}>🎾</span>
+                  <div style={{flex:1,fontSize:13,color:B.text,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{c.texto}</div>
+                </div>
+                {c.imagen && (
+                  <a href={c.imagen} target="_blank" rel="noopener noreferrer">
+                    <img src={c.imagen} alt="" onError={e=>{e.target.style.display="none"}}
+                      style={{marginTop:12,width:"100%",maxHeight:280,objectFit:"contain",borderRadius:10,border:`1px solid ${B.goldBorder}`,background:B.bg}}/>
+                  </a>
+                )}
+                {c.video && (
+                  <a href={c.video} target="_blank" rel="noopener noreferrer"
+                    style={{display:"inline-block",marginTop:12,padding:"9px 16px",borderRadius:9,background:B.bg,border:`1px solid ${B.goldBorder}`,color:B.gold,fontSize:13,fontWeight:700,textDecoration:"none"}}>
+                    ▶ Ver video
+                  </a>
+                )}
               </div>
             ))}
           </div>
