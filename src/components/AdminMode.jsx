@@ -11,6 +11,7 @@ import {
 } from "../constants"
 import { AdminDashboard } from "./AdminDashboard"
 import { AdminConsejos } from "./AdminConsejos"
+import { AdminDatos } from "./AdminDatos"
 import { AdminAsistencia } from "./AdminAsistencia"
 import { AdminPagos } from "./AdminPagos"
 
@@ -23,6 +24,7 @@ const ADMIN_NAV = [
   { id:"ingresos",   label:"Ingresos",   emoji:"△" },
   { id:"planes",     label:"Planes",     emoji:"❖" },
   { id:"consejos",   label:"Consejos",   emoji:"💡" },
+  { id:"datos",      label:"Datos",      emoji:"💾" },
 ]
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
@@ -677,6 +679,7 @@ export function AdminMode({ students, schedule, planes, consejos, onUpdate, onAd
       {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
       {view==="planes"     && <AdminPlanes     planes={planes} onSave={onSavePlanes}/>}
       {view==="consejos"   && <AdminConsejos   consejos={consejos} onSave={onSaveConsejos}/>}
+      {view==="datos"      && <AdminDatos      students={students} schedule={schedule} planes={planes} consejos={consejos} income={INCOME_DATA}/>}
     </>
   )
 
