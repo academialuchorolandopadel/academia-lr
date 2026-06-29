@@ -98,7 +98,7 @@ async function syncToFirestore(oldS, newS) {
 }
 
 // ─── Hook principal ────────────────────────────────────────────────────────────
-export function useAcademia() {
+export function useAcademia(ready = false) {
   const [students, setStudents] = useState([])
   const [schedule, setSchedule] = useState({ horas: [], asign: {} })
   const [planes, setPlanes]     = useState(PLANES)
@@ -106,6 +106,7 @@ export function useAcademia() {
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const studentsRef = useRef([])
+  const loadedRef   = useRef(false)
 
   const commitLocal = (id, updated) => setStudents(prev => {
     const next = prev.map(s => s.id === id ? updated : s)
@@ -134,8 +135,10 @@ export function useAcademia() {
         setLoading(false)
       }
     }
+    if (!ready || loadedRef.current) return
+    loadedRef.current = true
     load()
-  }, [])
+  }, [ready])
 
   const updateStudent = useCallback((id, updater) => {
     const old = studentsRef.current.find(s => s.id === id)
