@@ -1,6 +1,6 @@
 // src/App.jsx
 import { useState, useEffect } from "react"
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth"
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "firebase/auth"
 import { auth } from "./firebase"
 import { useAcademia } from "./hooks/useAcademia"
 import { B, LogoLR, PROFE_PIN, PROFE_EMAIL } from "./constants"
@@ -84,16 +84,22 @@ function ProfeAuth({ onSuccess, onCancel }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { students, schedule, planes, consejos, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, loadNotas, addNota, deleteNota } = useAcademia()
+  const [authChecked, setAuthChecked]           = useState(false)
+  const { students, schedule, planes, consejos, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, loadNotas, addNota, deleteNota } = useAcademia(authChecked)
   const [mode, setMode]                         = useState(null) // null | profe | admin | student
   const [currentStudentId, setCurrentStudentId] = useState(null)
   const [loginError, setLoginError]             = useState("")
-  const [authChecked, setAuthChecked]           = useState(false)
 
-  // Si ya hay sesión de profe activa, entrar directo al panel
+  // Sesión: el profe entra con email + contraseña. Los alumnos usan un login
+  // anónimo (solo para obtener un token y poder LEER; no pueden escribir datos).
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) setMode("admin")
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        try { await signInAnonymously(auth) }
+        catch (e) { console.error("Anon auth error:", e); setAuthChecked(true) }
+        return
+      }
+      if (!user.isAnonymous) setMode("admin")   // profe
       setAuthChecked(true)
     })
     return unsub
