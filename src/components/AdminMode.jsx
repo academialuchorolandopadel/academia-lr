@@ -7,7 +7,7 @@ import {
 import {
   B, AT, LogoLR, INCOME_DATA, MESES, StatCard,
   DIAS_LABEL, hoyDDMM, dateKey, diaCorto, CAP_TIPO, TIPO_LABEL,
-  fmt, fmtFull, fmtFechaCorta, initials, avatarColor,
+  fmt, fmtFull, fmtFechaCorta, initials, avatarColor, NIVELES_CORTO,
 } from "../constants"
 import { AdminDashboard } from "./AdminDashboard"
 import { AdminConsejos } from "./AdminConsejos"
@@ -91,10 +91,13 @@ function AlumnoForm({ inicial, titulo, onGuardar, onCancelar, error, planOpts = 
   )
 }
 
-function Ficha({ s, onEditar, onArchivar, onBaja, onCerrar }) {
+function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, onCerrar }) {
   const disp = s.abonadas - s.realizadas
   const cuenta = (m) => s.asistencia.filter(a => a.m === m).length
   const pagos = s.pagosDetalle || []
+  const habil = s.habilidades || {}
+  const totalNiv = temas.reduce((a,t)=> a + (habil[t.id]||0), 0)
+  const pctHab = temas.length ? Math.round(totalNiv/(temas.length*4)*100) : 0
   return (
     <div>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
@@ -147,6 +150,32 @@ function Ficha({ s, onEditar, onArchivar, onBaja, onCerrar }) {
         </div>
       )}
 
+      {temas.length>0 && onSetHabilidad && (
+        <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <span style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Mapa de habilidades</span>
+            <span style={{fontSize:12,color:B.gold,fontWeight:700}}>{pctHab}%</span>
+          </div>
+          {temas.map((t,i) => {
+            const niv = habil[t.id] || 0
+            return (
+              <div key={t.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"5px 0",borderBottom:i<temas.length-1?`1px solid ${B.border}`:"none"}}>
+                <span style={{fontSize:12,color:B.text,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.nombre}</span>
+                <div style={{display:"flex",gap:4}}>
+                  {[1,2,3,4].map(lvl => {
+                    const on = niv>=lvl
+                    return <button key={lvl} title={NIVELES_CORTO[lvl-1]}
+                      onClick={()=>onSetHabilidad(s.id, t.id, niv===lvl?lvl-1:lvl)}
+                      style={{width:22,height:22,borderRadius:6,cursor:"pointer",border:`1px solid ${on?B.gold:B.border}`,background:on?B.gold:"transparent",color:on?B.bgDark:B.textSub,fontSize:9,fontWeight:700}}>{lvl}</button>
+                  })}
+                </div>
+              </div>
+            )
+          })}
+          <div style={{fontSize:9,color:B.textMuted,marginTop:8}}>1 Intro · 2 Dominio · 3 Perf · 4 Máster · tocá para subir o bajar</div>
+        </div>
+      )}
+
       <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
         <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Historial de asistencias</div>
         {s.asistencia.length===0 && <div style={{fontSize:12,color:B.textMuted}}>Sin registros aún.</div>}
@@ -167,7 +196,7 @@ function Ficha({ s, onEditar, onArchivar, onBaja, onCerrar }) {
   )
 }
 
-function AdminAlumnos({ students, onAdd, onUpdate, onDelete, planNames = [] }) {
+function AdminAlumnos({ students, temas = [], onAdd, onUpdate, onDelete, onSetHabilidad, planNames = [] }) {
   const [search, setSearch]   = useState("")
   const [filter, setFilter]   = useState("Vigentes")
   const [selId, setSelId]     = useState(null)
@@ -291,7 +320,7 @@ function AdminAlumnos({ students, onAdd, onUpdate, onDelete, planNames = [] }) {
                 onGuardar={guardarEdit} onCancelar={()=>setEditing(false)}/>
             )}
             {sel && !editing && (
-              <Ficha s={sel} onEditar={()=>setEditing(true)} onArchivar={archivar} onBaja={darDeBaja} onCerrar={cerrarTodo}/>
+              <Ficha s={sel} temas={temas} onSetHabilidad={onSetHabilidad} onEditar={()=>setEditing(true)} onArchivar={archivar} onBaja={darDeBaja} onCerrar={cerrarTodo}/>
             )}
           </div>
         </div>
@@ -664,7 +693,7 @@ function AdminTopNav({ active, onNav, onLogout }) {
 }
 
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
-export function AdminMode({ students, schedule, planes, consejos, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
+export function AdminMode({ students, schedule, planes, consejos, temas, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onSaveTemas, onSetHabilidad, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
   const isMobile = useIsMobile()
   const planNames = (planes || []).map(p => p.nombre)
@@ -672,8 +701,8 @@ export function AdminMode({ students, schedule, planes, consejos, onUpdate, onAd
   const renderView = () => (
     <>
       {view==="dashboard"  && <AdminDashboard  students={students} income={INCOME_DATA}/>}
-      {view==="alumnos"    && <AdminAlumnos    students={students} onAdd={onAddStudent} onUpdate={onUpdate} onDelete={onDeleteStudent} planNames={planNames}/>}
-      {view==="asistencia" && <AdminAsistencia students={students} schedule={schedule} onUpdate={onUpdate}/>}
+      {view==="alumnos"    && <AdminAlumnos    students={students} temas={temas} onAdd={onAddStudent} onUpdate={onUpdate} onDelete={onDeleteStudent} onSetHabilidad={onSetHabilidad} planNames={planNames}/>}
+      {view==="asistencia" && <AdminAsistencia students={students} schedule={schedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas}/>}
       {view==="pagos"      && <AdminPagos      students={students} onAddPayment={onAddPayment} onUpdatePayment={onUpdatePayment} onRemovePayment={onRemovePayment}/>}
       {view==="agenda"     && <AdminAgenda     schedule={schedule} students={students} onSave={onSaveSchedule}/>}
       {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
