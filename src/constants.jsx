@@ -20,6 +20,37 @@ export function LogoLR({ size = 40 }) {
 }
 
 // Fecha "YYYY-MM-DD" → "DD/MM/YYYY"
+// Temas/objetivos de clase por defecto (editables desde la app)
+// Niveles de la escala de logros (acumulativos: se guarda 0..4 por habilidad)
+export const NIVELES       = ["Introducción","Dominio","Perfeccionamiento","Máster"]
+export const NIVELES_CORTO = ["Intro","Dom","Perf","Máster"]
+
+// id estable a partir del nombre (para no perder progreso al renombrar un tema)
+export const slugId = (s) => String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")
+export const genId  = () => "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,5)
+
+// Temas por defecto (editables). Cada uno: { id, nombre, eje }
+export const TEMAS_DEFAULT = [
+  { id:"volea",            nombre:"Volea",            eje:"" },
+  { id:"bandeja",          nombre:"Bandeja",          eje:"" },
+  { id:"vibora",           nombre:"Víbora",           eje:"" },
+  { id:"salida-de-pared",  nombre:"Salida de pared",  eje:"" },
+  { id:"globo",            nombre:"Globo",            eje:"" },
+  { id:"remate",           nombre:"Remate",           eje:"" },
+  { id:"dejada",           nombre:"Dejada",           eje:"" },
+  { id:"saque",            nombre:"Saque",            eje:"" },
+  { id:"resto",            nombre:"Resto",            eje:"" },
+  { id:"tactica-de-pareja",nombre:"Táctica de pareja",eje:"" },
+  { id:"posicionamiento",  nombre:"Posicionamiento",  eje:"" },
+  { id:"fisico",           nombre:"Físico",           eje:"" },
+]
+
+// Convierte cualquier lista guardada (strings viejos u objetos) a objetos {id,nombre,eje}
+export const normalizeTemas = (arr) => (arr||[]).map(t => typeof t === "string"
+  ? { id: slugId(t) || genId(), nombre: t, eje: "" }
+  : { id: t.id || slugId(t.nombre) || genId(), nombre: t.nombre || "", eje: t.eje || "" })
+  .filter(t => t.nombre)
+
 export const fmtFechaCorta = (f) => f ? `${String(f).slice(8,10)}/${String(f).slice(5,7)}/${String(f).slice(0,4)}` : "Sin fecha"
 
 // ─── Tipos de clase y capacidad ──────────────────────────────────────────────
