@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
 import { db } from '../firebase'
-import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL, PLANES, MESES } from '../constants'
+import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL, PLANES, MESES, TEMAS_DEFAULT, normalizeTemas } from '../constants'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const dateKey = (f) => {
@@ -54,7 +54,7 @@ async function fetchAlumnoFull(docSnap) {
   const base = { ...docSnap.data(), id: docSnap.id }
   const asistSnap = await getDocs(collection(db, 'alumnos', docSnap.id, 'asistencia'))
   base.asistencia = asistSnap.docs
-    .map(d => ({ f: d.data().fecha, m: d.data().marca }))
+    .map(d => ({ f: d.data().fecha, m: d.data().marca, tema: d.data().tema || "", comentario: d.data().comentario || "" }))
     .sort((a, b) => dateKey(a.f) - dateKey(b.f))
   const pagosSnap = await getDocs(collection(db, 'alumnos', docSnap.id, 'pagos'))
   base.pagosDetalle = pagosSnap.docs.map(d => {
@@ -73,6 +73,7 @@ async function fetchAlumnoFull(docSnap) {
   base.realizadas = countRealizadas(base.asistencia)
   base.estado = computeEstado(base.abonadas, base.realizadas)
   base.archivado = base.archivado || false
+  base.habilidades = base.habilidades || {}
   return base
 }
 
@@ -85,11 +86,17 @@ async function syncToFirestore(oldS, newS) {
   BASE_FIELDS.forEach(f => { if (oldS[f] !== newS[f]) diff[f] = newS[f] })
   if (Object.keys(diff).length > 0) await updateDoc(doc(db, 'alumnos', id), diff)
 
-  const oldMap = Object.fromEntries(oldS.asistencia.map(a => [a.f, a.m]))
-  for (const { f, m } of newS.asistencia) {
-    if (oldMap[f] !== m) {
-      const key = f.replace('/', '-')
-      await setDoc(doc(db, 'alumnos', id, 'asistencia', key), { fecha: f, marca: m })
+  const oldMap = Object.fromEntries(oldS.asistencia.map(a => [a.f, a]))
+  for (const rec of newS.asistencia) {
+    const prev = oldMap[rec.f]
+    const changed = !prev || prev.m !== rec.m
+      || (prev.tema || "") !== (rec.tema || "")
+      || (prev.comentario || "") !== (rec.comentario || "")
+    if (changed) {
+      const key = rec.f.replace('/', '-')
+      await setDoc(doc(db, 'alumnos', id, 'asistencia', key), {
+        fecha: rec.f, marca: rec.m, tema: rec.tema || "", comentario: rec.comentario || ""
+      })
     }
   }
   const nuevasRealizadas = countRealizadas(newS.asistencia)
@@ -103,6 +110,7 @@ export function useAcademia(ready = false) {
   const [schedule, setSchedule] = useState({ horas: [], asign: {} })
   const [planes, setPlanes]     = useState(PLANES)
   const [consejos, setConsejos] = useState([])
+  const [temas, setTemas]       = useState(TEMAS_DEFAULT)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const studentsRef = useRef([])
@@ -128,6 +136,8 @@ export function useAcademia(ready = false) {
         if (planSnap.exists() && Array.isArray(planSnap.data().lista)) setPlanes(planSnap.data().lista)
         const consSnap = await getDoc(doc(db, 'config', 'consejos'))
         if (consSnap.exists() && Array.isArray(consSnap.data().items)) setConsejos(consSnap.data().items)
+        const temasSnap = await getDoc(doc(db, 'config', 'temas'))
+        if (temasSnap.exists() && Array.isArray(temasSnap.data().lista)) setTemas(normalizeTemas(temasSnap.data().lista))
       } catch (err) {
         console.error('Firestore load error:', err)
         setError(err.message)
@@ -283,6 +293,25 @@ export function useAcademia(ready = false) {
     await deleteDoc(doc(db, 'alumnos', id, 'notas', notaId))
   }, [])
 
+  const saveTemas = useCallback((lista) => {
+    const norm = normalizeTemas(lista)
+    setTemas(norm)
+    setDoc(doc(db, 'config', 'temas'), { lista: norm }).catch(err => console.error('Temas write error:', err))
+  }, [])
+
+  // Escala de logros: nivel 0..4 de una habilidad (tema) para un alumno
+  const setHabilidad = useCallback((id, temaId, nivel) => {
+    const old = studentsRef.current.find(s => s.id === id)
+    if (!old) return
+    const n = Math.max(0, Math.min(4, Number(nivel) || 0))
+    const habilidades = { ...(old.habilidades || {}), [temaId]: n }
+    commitLocal(id, { ...old, habilidades })
+    ;(async () => {
+      try { await updateDoc(doc(db, 'alumnos', id), { [`habilidades.${temaId}`]: n }) }
+      catch (e) { console.error('setHabilidad error:', e) }
+    })()
+  }, [])
+
   const savePlanes = useCallback((lista) => {
     setPlanes(lista)
     setDoc(doc(db, 'config', 'planes'), { lista }).catch(err => console.error('Planes write error:', err))
@@ -293,5 +322,5 @@ export function useAcademia(ready = false) {
     setDoc(doc(db, 'config', 'horarios'), next).catch(err => console.error('Schedule write error:', err))
   }, [])
 
-  return { students, schedule, planes, consejos, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, loadNotas, addNota, deleteNota }
+  return { students, schedule, planes, consejos, temas, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, setHabilidad, loadNotas, addNota, deleteNota }
 }
