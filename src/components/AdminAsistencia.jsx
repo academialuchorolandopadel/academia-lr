@@ -2,11 +2,18 @@
 import { useState, useMemo } from "react"
 import { B, AT, DIAS_LABEL, hoyDDMM, diaCorto, avatarColor } from "../constants"
 
-export function AdminAsistencia({ students, schedule, onUpdate }) {
+export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSaveTemas }) {
   const [wk, setWk]           = useState(0)
   const [showAll, setShowAll] = useState(false)
   const [searchA, setSearchA] = useState("")
   const [selId, setSelId]     = useState(null)
+  const [det, setDet]           = useState(null)   // { s, fecha } → panel de tema/comentario
+  const [dMarca, setDMarca]     = useState("P")
+  const [dTema, setDTema]       = useState("")
+  const [dComent, setDComent]   = useState("")
+  const [lastTema, setLastTema] = useState("")     // "pega" el último tema para el grupo
+  const [temasOpen, setTemasOpen] = useState(false)
+  const [nuevoTema, setNuevoTema] = useState("")
   const hoy     = hoyDDMM()
   const activeS = students.filter(s => !s.archivado)  // OK y vencidos; solo se ocultan los archivados
 
@@ -51,6 +58,32 @@ export function AdminAsistencia({ students, schedule, onUpdate }) {
     const seq = ["","P","I","X","R"]
     setMark(s, fecha, seq[(seq.indexOf(actual)+1) % seq.length])
   }
+
+  const temaDe = (s, fecha) => s.asistencia.find(a => a.f === fecha)?.tema || ""
+  const abrirDetalle = (s, fecha) => {
+    const rec = s.asistencia.find(a => a.f === fecha)
+    setDet({ s, fecha })
+    setDMarca(rec?.m || "P")
+    setDTema(rec?.tema || lastTema || "")
+    setDComent(rec?.comentario || "")
+  }
+  const guardarDetalle = () => {
+    const { s, fecha } = det
+    onUpdate(s.id, st => {
+      const has = st.asistencia.find(a => a.f === fecha)
+      const rec = { f: fecha, m: dMarca, tema: dTema, comentario: dComent }
+      return { ...st, asistencia: has ? st.asistencia.map(a => a.f === fecha ? { ...a, ...rec } : a) : [...st.asistencia, rec] }
+    })
+    if (dTema) setLastTema(dTema)
+    setDet(null)
+  }
+  const agregarTema = (t) => {
+    const v = (t || "").trim()
+    if (!v) return
+    if (!temas.some(x => x.nombre === v)) onSaveTemas([...temas, v]) // el hook lo normaliza a objeto
+    setDTema(v); setNuevoTema("")
+  }
+  const borrarTema = (t) => { if (window.confirm(`¿Borrar el tema "${t.nombre}" de la lista?`)) onSaveTemas(temas.filter(x => x.id !== t.id)) }
 
   const overallPct = (s) => {
     const tot  = s.asistencia.filter(a => a.m).length
@@ -170,12 +203,18 @@ export function AdminAsistencia({ students, schedule, onUpdate }) {
       <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"12px 16px",marginBottom:12}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8,marginBottom:8}}>
           <div style={{fontSize:11,color:B.textSub}}>Marcar todos ({focusDate}) como:</div>
-          {!esSemana && (
-            <button onClick={()=>setShowAll(v=>!v)}
-              style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${showAll?B.gold:B.border}`,background:showAll?B.goldBg:"transparent",color:showAll?B.gold:B.textSub,fontSize:11,cursor:"pointer",fontWeight:600}}>
-              {showAll ? "✓ Viendo todos" : "Ver todos"}
+          <div style={{display:"flex",gap:6}}>
+            <button onClick={()=>setTemasOpen(true)}
+              style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:11,cursor:"pointer",fontWeight:600}}>
+              ⚙ Temas
             </button>
-          )}
+            {!esSemana && (
+              <button onClick={()=>setShowAll(v=>!v)}
+                style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${showAll?B.gold:B.border}`,background:showAll?B.goldBg:"transparent",color:showAll?B.gold:B.textSub,fontSize:11,cursor:"pointer",fontWeight:600}}>
+                {showAll ? "✓ Viendo todos" : "Ver todos"}
+              </button>
+            )}
+          </div>
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {["P","I","X","R"].map(k => {
@@ -207,11 +246,12 @@ export function AdminAsistencia({ students, schedule, onUpdate }) {
                 </th>
               ))}
               <th style={{padding:"10px 10px",textAlign:"center",fontSize:10,color:B.textSub,fontWeight:600}}>%</th>
+              {!esSemana && <th style={{padding:"10px 8px",textAlign:"center",fontSize:10,color:B.textSub,fontWeight:600}}>Tema</th>}
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={dispCols.length+2} style={{padding:"20px 16px",textAlign:"center",fontSize:12,color:B.textMuted}}>
+              <tr><td colSpan={dispCols.length + (esSemana?2:3)} style={{padding:"20px 16px",textAlign:"center",fontSize:12,color:B.textMuted}}>
                 Nadie asignado este día en la agenda. Tocá "Ver todos" para marcar igual.
               </td></tr>
             )}
@@ -228,6 +268,9 @@ export function AdminAsistencia({ students, schedule, onUpdate }) {
                         ? {fontSize:11,color:"#f87171",whiteSpace:"nowrap",border:`1px solid ${B.dangerBorder}`,background:B.dangerBg,padding:"2px 7px",borderRadius:6,fontWeight:600}
                         : {fontSize:11,color:B.text,whiteSpace:"nowrap"}}>{s.nombre}</span>
                     </div>
+                    {!esSemana && temaDe(s, focusDate) && (
+                      <div style={{fontSize:10,color:B.gold,marginTop:3,marginLeft:31,whiteSpace:"nowrap"}}>◆ {temaDe(s, focusDate)}</div>
+                    )}
                   </td>
                   {dispCols.map((c) => {
                     const marca = s.asistencia.find(a => a.f === c.f)?.m || ""
@@ -242,6 +285,12 @@ export function AdminAsistencia({ students, schedule, onUpdate }) {
                       {pct !== null ? `${pct}%` : "—"}
                     </span>
                   </td>
+                  {!esSemana && (
+                    <td style={{padding:"6px 8px",textAlign:"center"}}>
+                      <button onClick={()=>abrirDetalle(s, focusDate)} title="Tema y comentario de la clase"
+                        style={{background:temaDe(s,focusDate)?B.goldBg:"transparent",border:`1px solid ${temaDe(s,focusDate)?B.goldBorder:B.border}`,borderRadius:7,padding:"4px 9px",cursor:"pointer",fontSize:14}}>📝</button>
+                    </td>
+                  )}
                 </tr>
               )
             })}
@@ -249,6 +298,77 @@ export function AdminAsistencia({ students, schedule, onUpdate }) {
         </table>
       </div>
       </>
+      )}
+
+      {/* Modal: tema + comentario de la clase de un alumno */}
+      {det && (
+        <div onClick={()=>setDet(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:20,width:"100%",maxWidth:380,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+              <div style={{width:34,height:34,background:avatarColor(det.s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff"}}>{det.s.iniciales}</div>
+              <div>
+                <div style={{fontSize:15,fontWeight:700,color:B.text}}>{det.s.nombre}</div>
+                <div style={{fontSize:11,color:B.textSub}}>Clase del {det.fecha}</div>
+              </div>
+            </div>
+
+            <div style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1,margin:"14px 0 6px"}}>Asistencia</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {["P","I","X","R"].map(k => {
+                const on = dMarca===k, st=AT[k]
+                return <button key={k} onClick={()=>setDMarca(k)}
+                  style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${on?st.border:B.border}`,background:on?st.bg:"transparent",color:on?st.text:B.textSub,fontSize:12,fontWeight:700,cursor:"pointer"}}>{k}</button>
+              })}
+            </div>
+
+            <div style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1,margin:"16px 0 6px"}}>Tema trabajado</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {temas.map(t => {
+                const on = dTema===t.nombre
+                return <button key={t.id} onClick={()=>setDTema(on?"":t.nombre)}
+                  style={{padding:"6px 11px",borderRadius:16,border:`1px solid ${on?B.gold:B.border}`,background:on?B.goldBg:"transparent",color:on?B.gold:B.textSub,fontSize:12,fontWeight:on?700:400,cursor:"pointer"}}>{t.nombre}</button>
+              })}
+            </div>
+            <div style={{display:"flex",gap:6,marginTop:8}}>
+              <input value={nuevoTema} onChange={e=>setNuevoTema(e.target.value)} placeholder="+ Tema nuevo..."
+                style={{flex:1,padding:"8px 10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none"}}/>
+              <button onClick={()=>agregarTema(nuevoTema)} style={{padding:"8px 12px",borderRadius:8,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>Agregar</button>
+            </div>
+
+            <div style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1,margin:"16px 0 6px"}}>Comentario para el alumno</div>
+            <textarea value={dComent} onChange={e=>setDComent(e.target.value)} rows={3}
+              placeholder="Ej: mejoró la volea de revés, le costó la salida de pared..."
+              style={{width:"100%",padding:"10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
+
+            <button onClick={guardarDetalle} style={{width:"100%",marginTop:14,padding:"11px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:"pointer"}}>Guardar</button>
+            <button onClick={()=>setDet(null)} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:13,cursor:"pointer"}}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: gestionar lista de temas */}
+      {temasOpen && (
+        <div onClick={()=>setTemasOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:20,width:"100%",maxWidth:360,maxHeight:"85vh",overflowY:"auto"}}>
+            <div style={{fontSize:15,fontWeight:700,color:B.gold,marginBottom:4}}>Temas de clase</div>
+            <div style={{fontSize:12,color:B.textSub,marginBottom:14}}>Tu lista de objetivos. Los que uses acá alimentan el progreso del alumno.</div>
+            <div style={{display:"flex",gap:6,marginBottom:14}}>
+              <input value={nuevoTema} onChange={e=>setNuevoTema(e.target.value)} placeholder="Nuevo tema..."
+                style={{flex:1,padding:"9px 10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none"}}/>
+              <button onClick={()=>agregarTema(nuevoTema)} style={{padding:"9px 14px",borderRadius:8,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>+</button>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {temas.length===0 && <div style={{fontSize:12,color:B.textMuted}}>Sin temas todavía.</div>}
+              {temas.map(t => (
+                <div key={t.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,padding:"9px 12px"}}>
+                  <span style={{fontSize:13,color:B.text}}>{t.nombre}</span>
+                  <button onClick={()=>borrarTema(t)} style={{background:"transparent",border:"none",color:B.textMuted,cursor:"pointer",fontSize:14}}>🗑</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={()=>setTemasOpen(false)} style={{width:"100%",marginTop:16,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:13,cursor:"pointer"}}>Cerrar</button>
+          </div>
+        </div>
       )}
     </div>
   )
