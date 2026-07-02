@@ -1,8 +1,8 @@
 // src/components/StudentMode.jsx
 import { useState, useEffect } from "react"
-import { B, AT, NOTE_STYLE, fmtFull, fmtFechaCorta, getNotifications, LogoLR, DIAS_LABEL, CAP_TIPO, TIPO_LABEL } from "../constants"
+import { B, AT, NOTE_STYLE, fmtFull, fmtFechaCorta, getNotifications, LogoLR, DIAS_LABEL, CAP_TIPO, TIPO_LABEL, NIVELES_CORTO } from "../constants"
 
-export function StudentMode({ student, onLogout, consejos = [], schedule = {}, onLoadNotas, onAddNota, onDeleteNota }) {
+export function StudentMode({ student, onLogout, consejos = [], schedule = {}, temas = [], onLoadNotas, onAddNota, onDeleteNota }) {
   const [tab, setTab] = useState("cuenta")
 
   const notes      = getNotifications(student)
@@ -28,6 +28,7 @@ export function StudentMode({ student, onLogout, consejos = [], schedule = {}, o
   const asistPct   = totalC ? Math.round((presentes/totalC)*100) : 0
 
   // Notas personales (bitácora)
+  const [asisSel, setAsisSel]     = useState(null)   // detalle de una clase (tema/comentario)
   const [notas, setNotas]         = useState(null)   // null = sin cargar
   const [nuevaNota, setNuevaNota] = useState("")
   const [guardando, setGuardando] = useState(false)
@@ -62,6 +63,7 @@ export function StudentMode({ student, onLogout, consejos = [], schedule = {}, o
     { id:"cuenta",     label:"Mi Cuenta",  icon:"◈" },
     { id:"avisos",     label:"Avisos",     icon:"🔔", badge:badgeCount },
     { id:"asistencia", label:"Asistencia", icon:"◉" },
+    { id:"progreso",   label:"Mi progreso",icon:"🏆" },
     { id:"pagos",      label:"Pagos",      icon:"◇" },
     { id:"horarios",   label:"Horarios",   icon:"📅" },
     { id:"consejos",   label:"Consejos",   icon:"💡" },
@@ -191,19 +193,27 @@ export function StudentMode({ student, onLogout, consejos = [], schedule = {}, o
               })}
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:7}}>
-              {student.asistencia.map(({f,m},i) => {
+              {student.asistencia.map((rec,i) => {
+                const {f,m,tema,comentario} = rec
                 const s = AT[m]
+                const tappable = !!(tema || comentario)
                 return (
-                  <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:s?`${s.bg}88`:B.bgCard,border:`1px solid ${s?s.border+"55":B.border}`,borderRadius:10,padding:"11px 14px"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <div style={{fontSize:11,color:B.textSub,minWidth:46}}>{f}</div>
-                      <div style={{width:1,height:16,background:B.border}}/>
-                      <div style={{fontSize:12,color:s?s.text:B.textMuted}}>{s?s.label:"Sin clase registrada"}</div>
-                    </div>
-                    {s && (
-                      <div style={{width:28,height:28,borderRadius:7,background:s.bg,border:`1px solid ${s.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:s.text,fontWeight:700}}>
-                        {s.icon}
+                  <div key={i} onClick={tappable?()=>setAsisSel(rec):undefined}
+                    style={{background:s?`${s.bg}88`:B.bgCard,border:`1px solid ${s?s.border+"55":B.border}`,borderRadius:10,padding:"11px 14px",cursor:tappable?"pointer":"default"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:10}}>
+                        <div style={{fontSize:11,color:B.textSub,minWidth:46}}>{f}</div>
+                        <div style={{width:1,height:16,background:B.border}}/>
+                        <div style={{fontSize:12,color:s?s.text:B.textMuted}}>{s?s.label:"Sin clase registrada"}</div>
                       </div>
+                      {s && (
+                        <div style={{width:28,height:28,borderRadius:7,background:s.bg,border:`1px solid ${s.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:s.text,fontWeight:700}}>
+                          {s.icon}
+                        </div>
+                      )}
+                    </div>
+                    {tema && (
+                      <div style={{fontSize:11,color:B.gold,marginTop:7,marginLeft:56}}>◆ {tema}{comentario?" · ver detalle":""}</div>
                     )}
                   </div>
                 )
@@ -283,6 +293,42 @@ export function StudentMode({ student, onLogout, consejos = [], schedule = {}, o
         )}
 
         {/* Tab: Consejos del profe */}
+        {tab==="progreso" && (() => {
+          const habil = student.habilidades || {}
+          const totalNiv = temas.reduce((a,t)=> a + (habil[t.id]||0), 0)
+          const pct = temas.length ? Math.round(totalNiv/(temas.length*4)*100) : 0
+          return (
+            <div>
+              <div style={{background:B.goldBg,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:"18px 20px",marginBottom:14,textAlign:"center"}}>
+                <div style={{fontSize:10,color:B.gold,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Tu progreso general</div>
+                <div style={{fontSize:34,fontWeight:800,color:B.text}}>{pct}%</div>
+                <div style={{fontSize:11,color:B.textSub,marginTop:4}}>{totalNiv} de {temas.length*4} niveles conseguidos</div>
+              </div>
+              <div style={{fontSize:11,color:B.textSub,marginBottom:8}}>Cada habilidad tiene 4 niveles: Intro · Dominio · Perfeccionamiento · Máster</div>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {temas.length===0 && <div style={{fontSize:13,color:B.textMuted}}>Todavía no hay habilidades cargadas.</div>}
+                {temas.map(t => {
+                  const niv = habil[t.id] || 0
+                  return (
+                    <div key={t.id} style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"11px 14px"}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+                        <span style={{fontSize:13,color:B.text,fontWeight:600,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.nombre}</span>
+                        <div style={{display:"flex",gap:4}}>
+                          {[1,2,3,4].map(lvl => {
+                            const on = niv>=lvl
+                            return <div key={lvl} title={NIVELES_CORTO[lvl-1]} style={{width:20,height:20,borderRadius:6,border:`1px solid ${on?B.gold:B.border}`,background:on?B.gold:"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:on?B.bgDark:B.textMuted}}>{lvl}</div>
+                          })}
+                        </div>
+                      </div>
+                      {niv>0 && <div style={{fontSize:10,color:B.gold,marginTop:6}}>Nivel actual: {NIVELES_CORTO[niv-1]}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+
         {tab==="consejos" && (
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             {consejos.length === 0 ? (
@@ -350,6 +396,25 @@ export function StudentMode({ student, onLogout, consejos = [], schedule = {}, o
         )}
 
       </div>
+
+      {/* Detalle de una clase: tema + comentario del profe */}
+      {asisSel && (
+        <div onClick={()=>setAsisSel(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:22,width:"100%",maxWidth:360}}>
+            <div style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Clase del {asisSel.f}</div>
+            {asisSel.tema && <div style={{fontSize:18,fontWeight:700,color:B.gold,marginBottom:14}}>◆ {asisSel.tema}</div>}
+            {asisSel.comentario ? (
+              <>
+                <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Comentario del profe</div>
+                <div style={{fontSize:14,color:B.text,lineHeight:1.6,whiteSpace:"pre-wrap",background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:14}}>{asisSel.comentario}</div>
+              </>
+            ) : (
+              <div style={{fontSize:13,color:B.textSub}}>El profe trabajó este objetivo en tu clase.</div>
+            )}
+            <button onClick={()=>setAsisSel(null)} style={{width:"100%",marginTop:16,padding:"11px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:"pointer"}}>Cerrar</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
