@@ -46,10 +46,28 @@ export const TEMAS_DEFAULT = [
 ]
 
 // Convierte cualquier lista guardada (strings viejos u objetos) a objetos {id,nombre,eje}
-export const normalizeTemas = (arr) => (arr||[]).map(t => typeof t === "string"
-  ? { id: slugId(t) || genId(), nombre: t, eje: "" }
-  : { id: t.id || slugId(t.nombre) || genId(), nombre: t.nombre || "", eje: t.eje || "" })
-  .filter(t => t.nombre)
+export const normalizeTemas = (arr) => (arr||[]).map(t => {
+  if (typeof t === "string") return { id: slugId(t) || genId(), nombre: t, eje: "", subs: [] }
+  const gid = t.id || slugId(t.nombre) || genId()
+  const subs = (t.subs || []).map(sub => typeof sub === "string"
+    ? { id: gid + "__" + (slugId(sub) || genId()), nombre: sub }
+    : { id: sub.id || gid + "__" + (slugId(sub.nombre) || genId()), nombre: sub.nombre || "" })
+    .filter(sub => sub.nombre)
+  return { id: gid, nombre: t.nombre || "", eje: t.eje || "", subs }
+}).filter(t => t.nombre)
+
+// Aplana golpes + subs en una lista de "unidades de habilidad" con nivel propio
+export const flattenSkills = (temas = []) => temas.flatMap(t => [
+  { id: t.id, nombre: t.nombre, golpe: t.nombre, base: true },
+  ...(t.subs || []).map(sub => ({ id: sub.id, nombre: sub.nombre, golpe: t.nombre, base: false })),
+])
+// Progreso total (nivel 0..4 por unidad)
+export const progresoTotal = (habil = {}, temas = []) => {
+  const u = flattenSkills(temas)
+  const done = u.reduce((a, s) => a + (habil[s.id] || 0), 0)
+  const total = u.length * 4
+  return { done, total, pct: total ? Math.round(done / total * 100) : 0 }
+}
 
 export const fmtFechaCorta = (f) => f ? `${String(f).slice(8,10)}/${String(f).slice(5,7)}/${String(f).slice(0,4)}` : "Sin fecha"
 
