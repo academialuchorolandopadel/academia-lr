@@ -110,7 +110,7 @@ export function useAcademia(ready = false) {
   const [schedule, setSchedule] = useState({ horas: [], asign: {} })
   const [planes, setPlanes]     = useState(PLANES)
   const [consejos, setConsejos] = useState([])
-  const [temas, setTemas]       = useState(TEMAS_DEFAULT)
+  const [temas, setTemas]       = useState(() => normalizeTemas(TEMAS_DEFAULT))
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const studentsRef = useRef([])
