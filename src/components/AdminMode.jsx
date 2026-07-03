@@ -7,7 +7,7 @@ import {
 import {
   B, AT, LogoLR, INCOME_DATA, MESES, StatCard,
   DIAS_LABEL, hoyDDMM, dateKey, diaCorto, CAP_TIPO, TIPO_LABEL,
-  fmt, fmtFull, fmtFechaCorta, initials, avatarColor, NIVELES_CORTO,
+  fmt, fmtFull, fmtFechaCorta, initials, avatarColor, NIVELES_CORTO, progresoTotal,
 } from "../constants"
 import { AdminDashboard } from "./AdminDashboard"
 import { AdminConsejos } from "./AdminConsejos"
@@ -96,8 +96,7 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
   const cuenta = (m) => s.asistencia.filter(a => a.m === m).length
   const pagos = s.pagosDetalle || []
   const habil = s.habilidades || {}
-  const totalNiv = temas.reduce((a,t)=> a + (habil[t.id]||0), 0)
-  const pctHab = temas.length ? Math.round(totalNiv/(temas.length*4)*100) : 0
+  const progHab = progresoTotal(habil, temas)
   return (
     <div>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
@@ -150,31 +149,44 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
         </div>
       )}
 
-      {temas.length>0 && onSetHabilidad && (
-        <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Mapa de habilidades</span>
-            <span style={{fontSize:12,color:B.gold,fontWeight:700}}>{pctHab}%</span>
-          </div>
-          {temas.map((t,i) => {
-            const niv = habil[t.id] || 0
-            return (
-              <div key={t.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"5px 0",borderBottom:i<temas.length-1?`1px solid ${B.border}`:"none"}}>
-                <span style={{fontSize:12,color:B.text,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.nombre}</span>
-                <div style={{display:"flex",gap:4}}>
-                  {[1,2,3,4].map(lvl => {
-                    const on = niv>=lvl
-                    return <button key={lvl} title={NIVELES_CORTO[lvl-1]}
-                      onClick={()=>onSetHabilidad(s.id, t.id, niv===lvl?lvl-1:lvl)}
-                      style={{width:22,height:22,borderRadius:6,cursor:"pointer",border:`1px solid ${on?B.gold:B.border}`,background:on?B.gold:"transparent",color:on?B.bgDark:B.textSub,fontSize:9,fontWeight:700}}>{lvl}</button>
-                  })}
+      {temas.length>0 && onSetHabilidad && (() => {
+        const Pips = ({ skillId }) => {
+          const niv = habil[skillId] || 0
+          return (
+            <div style={{display:"flex",gap:4}}>
+              {[1,2,3,4].map(lvl => {
+                const on = niv>=lvl
+                return <button key={lvl} title={NIVELES_CORTO[lvl-1]}
+                  onClick={()=>onSetHabilidad(s.id, skillId, niv===lvl?lvl-1:lvl)}
+                  style={{width:22,height:22,borderRadius:6,cursor:"pointer",border:`1px solid ${on?B.gold:B.border}`,background:on?B.gold:"transparent",color:on?B.bgDark:B.textSub,fontSize:9,fontWeight:700}}>{lvl}</button>
+              })}
+            </div>
+          )
+        }
+        return (
+          <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <span style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Mapa de habilidades</span>
+              <span style={{fontSize:12,color:B.gold,fontWeight:700}}>{progHab.pct}%</span>
+            </div>
+            {temas.map(t => (
+              <div key={t.id} style={{marginBottom:6}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"3px 0"}}>
+                  <span style={{fontSize:12,color:B.text,fontWeight:600,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.nombre}</span>
+                  <Pips skillId={t.id}/>
                 </div>
+                {(t.subs||[]).map(sub => (
+                  <div key={sub.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"3px 0 3px 12px"}}>
+                    <span style={{fontSize:11,color:B.textSub,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>› {sub.nombre}</span>
+                    <Pips skillId={sub.id}/>
+                  </div>
+                ))}
               </div>
-            )
-          })}
-          <div style={{fontSize:9,color:B.textMuted,marginTop:8}}>1 Intro · 2 Dominio · 3 Perf · 4 Máster · tocá para subir o bajar</div>
-        </div>
-      )}
+            ))}
+            <div style={{fontSize:9,color:B.textMuted,marginTop:8}}>1 Intro · 2 Dominio · 3 Perf · 4 Máster · tocá para subir o bajar</div>
+          </div>
+        )
+      })()}
 
       <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
         <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Historial de asistencias</div>
