@@ -1,6 +1,6 @@
 // src/components/StudentMode.jsx
 import { useState, useEffect } from "react"
-import { B, AT, NOTE_STYLE, fmtFull, fmtFechaCorta, getNotifications, LogoLR, DIAS_LABEL, CAP_TIPO, TIPO_LABEL, NIVELES_CORTO } from "../constants"
+import { B, AT, NOTE_STYLE, fmtFull, fmtFechaCorta, getNotifications, LogoLR, DIAS_LABEL, CAP_TIPO, TIPO_LABEL, NIVELES_CORTO, progresoTotal } from "../constants"
 
 export function StudentMode({ student, onLogout, consejos = [], schedule = {}, temas = [], onLoadNotas, onAddNota, onDeleteNota }) {
   const [tab, setTab] = useState("cuenta")
@@ -295,35 +295,43 @@ export function StudentMode({ student, onLogout, consejos = [], schedule = {}, t
         {/* Tab: Consejos del profe */}
         {tab==="progreso" && (() => {
           const habil = student.habilidades || {}
-          const totalNiv = temas.reduce((a,t)=> a + (habil[t.id]||0), 0)
-          const pct = temas.length ? Math.round(totalNiv/(temas.length*4)*100) : 0
+          const prog = progresoTotal(habil, temas)
+          const Pips = ({ skillId, small }) => {
+            const niv = habil[skillId] || 0
+            const sz = small ? 18 : 20
+            return (
+              <div style={{display:"flex",gap:4}}>
+                {[1,2,3,4].map(lvl => {
+                  const on = niv>=lvl
+                  return <div key={lvl} title={NIVELES_CORTO[lvl-1]} style={{width:sz,height:sz,borderRadius:6,border:`1px solid ${on?B.gold:B.border}`,background:on?B.gold:"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:on?B.bgDark:B.textMuted}}>{lvl}</div>
+                })}
+              </div>
+            )
+          }
           return (
             <div>
               <div style={{background:B.goldBg,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:"18px 20px",marginBottom:14,textAlign:"center"}}>
                 <div style={{fontSize:10,color:B.gold,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Tu progreso general</div>
-                <div style={{fontSize:34,fontWeight:800,color:B.text}}>{pct}%</div>
-                <div style={{fontSize:11,color:B.textSub,marginTop:4}}>{totalNiv} de {temas.length*4} niveles conseguidos</div>
+                <div style={{fontSize:34,fontWeight:800,color:B.text}}>{prog.pct}%</div>
+                <div style={{fontSize:11,color:B.textSub,marginTop:4}}>{prog.done} de {prog.total} niveles conseguidos</div>
               </div>
               <div style={{fontSize:11,color:B.textSub,marginBottom:8}}>Cada habilidad tiene 4 niveles: Intro · Dominio · Perfeccionamiento · Máster</div>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 {temas.length===0 && <div style={{fontSize:13,color:B.textMuted}}>Todavía no hay habilidades cargadas.</div>}
-                {temas.map(t => {
-                  const niv = habil[t.id] || 0
-                  return (
-                    <div key={t.id} style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"11px 14px"}}>
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-                        <span style={{fontSize:13,color:B.text,fontWeight:600,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.nombre}</span>
-                        <div style={{display:"flex",gap:4}}>
-                          {[1,2,3,4].map(lvl => {
-                            const on = niv>=lvl
-                            return <div key={lvl} title={NIVELES_CORTO[lvl-1]} style={{width:20,height:20,borderRadius:6,border:`1px solid ${on?B.gold:B.border}`,background:on?B.gold:"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:on?B.bgDark:B.textMuted}}>{lvl}</div>
-                          })}
-                        </div>
-                      </div>
-                      {niv>0 && <div style={{fontSize:10,color:B.gold,marginTop:6}}>Nivel actual: {NIVELES_CORTO[niv-1]}</div>}
+                {temas.map(t => (
+                  <div key={t.id} style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"11px 14px"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+                      <span style={{fontSize:13,color:B.text,fontWeight:600,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.nombre}</span>
+                      <Pips skillId={t.id}/>
                     </div>
-                  )
-                })}
+                    {(t.subs||[]).map(sub => (
+                      <div key={sub.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginTop:8,paddingLeft:12}}>
+                        <span style={{fontSize:12,color:B.textSub,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>› {sub.nombre}</span>
+                        <Pips skillId={sub.id} small/>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
           )
