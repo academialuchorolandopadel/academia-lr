@@ -14,6 +14,7 @@ export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSa
   const [lastTema, setLastTema] = useState("")     // "pega" el último tema para el grupo
   const [temasOpen, setTemasOpen] = useState(false)
   const [nuevoTema, setNuevoTema] = useState("")
+  const [subTxt, setSubTxt]       = useState({})   // texto de sub por golpe
   const hoy     = hoyDDMM()
   const activeS = students.filter(s => !s.archivado)  // OK y vencidos; solo se ocultan los archivados
 
@@ -84,6 +85,15 @@ export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSa
     setDTema(v); setNuevoTema("")
   }
   const borrarTema = (t) => { if (window.confirm(`¿Borrar el tema "${t.nombre}" de la lista?`)) onSaveTemas(temas.filter(x => x.id !== t.id)) }
+  const agregarSub = (golpe, nombre) => {
+    const v = (nombre || "").trim()
+    if (!v) return
+    if (!(golpe.subs || []).some(x => x.nombre === v))
+      onSaveTemas(temas.map(t => t.id === golpe.id ? { ...t, subs: [...(t.subs || []), v] } : t))
+    setSubTxt(s => ({ ...s, [golpe.id]: "" }))
+  }
+  const borrarSub = (golpe, sub) =>
+    onSaveTemas(temas.map(t => t.id === golpe.id ? { ...t, subs: (t.subs || []).filter(x => x.id !== sub.id) } : t))
 
   const overallPct = (s) => {
     const tot  = s.asistencia.filter(a => a.m).length
@@ -350,19 +360,36 @@ export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSa
       {temasOpen && (
         <div onClick={()=>setTemasOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
           <div onClick={e=>e.stopPropagation()} style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:16,padding:20,width:"100%",maxWidth:360,maxHeight:"85vh",overflowY:"auto"}}>
-            <div style={{fontSize:15,fontWeight:700,color:B.gold,marginBottom:4}}>Temas de clase</div>
-            <div style={{fontSize:12,color:B.textSub,marginBottom:14}}>Tu lista de objetivos. Los que uses acá alimentan el progreso del alumno.</div>
+            <div style={{fontSize:15,fontWeight:700,color:B.gold,marginBottom:4}}>Golpes y sub-habilidades</div>
+            <div style={{fontSize:12,color:B.textSub,marginBottom:14}}>Cada golpe tiene su nivel. Sumale sub-etiquetas (cortada, alta...) solo cuando las corregís por separado.</div>
             <div style={{display:"flex",gap:6,marginBottom:14}}>
-              <input value={nuevoTema} onChange={e=>setNuevoTema(e.target.value)} placeholder="Nuevo tema..."
+              <input value={nuevoTema} onChange={e=>setNuevoTema(e.target.value)} placeholder="Nuevo golpe..."
                 style={{flex:1,padding:"9px 10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none"}}/>
               <button onClick={()=>agregarTema(nuevoTema)} style={{padding:"9px 14px",borderRadius:8,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>+</button>
             </div>
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {temas.length===0 && <div style={{fontSize:12,color:B.textMuted}}>Sin temas todavía.</div>}
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {temas.length===0 && <div style={{fontSize:12,color:B.textMuted}}>Sin golpes todavía.</div>}
               {temas.map(t => (
-                <div key={t.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,padding:"9px 12px"}}>
-                  <span style={{fontSize:13,color:B.text}}>{t.nombre}</span>
-                  <button onClick={()=>borrarTema(t)} style={{background:"transparent",border:"none",color:B.textMuted,cursor:"pointer",fontSize:14}}>🗑</button>
+                <div key={t.id} style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:13,color:B.text,fontWeight:600}}>{t.nombre}</span>
+                    <button onClick={()=>borrarTema(t)} style={{background:"transparent",border:"none",color:B.textMuted,cursor:"pointer",fontSize:14}}>🗑</button>
+                  </div>
+                  {(t.subs||[]).length>0 && (
+                    <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:8}}>
+                      {t.subs.map(sub => (
+                        <span key={sub.id} style={{display:"inline-flex",alignItems:"center",gap:5,background:B.goldBg,border:`1px solid ${B.goldBorder}`,borderRadius:14,padding:"3px 9px",fontSize:11,color:B.gold}}>
+                          {sub.nombre}
+                          <button onClick={()=>borrarSub(t,sub)} style={{background:"transparent",border:"none",color:B.gold,cursor:"pointer",fontSize:12,padding:0,lineHeight:1}}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{display:"flex",gap:5,marginTop:8}}>
+                    <input value={subTxt[t.id]||""} onChange={e=>setSubTxt(s=>({...s,[t.id]:e.target.value}))} placeholder="+ sub (cortada, alta...)"
+                      style={{flex:1,padding:"6px 9px",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:7,color:B.text,fontSize:12,outline:"none"}}/>
+                    <button onClick={()=>agregarSub(t, subTxt[t.id])} style={{padding:"6px 11px",borderRadius:7,border:`1px solid ${B.goldBorder}`,background:"transparent",color:B.gold,fontSize:12,fontWeight:700,cursor:"pointer"}}>+</button>
+                  </div>
                 </div>
               ))}
             </div>
