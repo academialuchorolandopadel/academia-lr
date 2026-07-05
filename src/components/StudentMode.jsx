@@ -1,6 +1,6 @@
 // src/components/StudentMode.jsx
 import { useState, useEffect } from "react"
-import { B, AT, NOTE_STYLE, fmtFull, fmtFechaCorta, getNotifications, LogoLR, DIAS_LABEL, CAP_TIPO, TIPO_LABEL, NIVELES_CORTO, progresoTotal } from "../constants"
+import { B, AT, NOTE_STYLE, fmtFull, fmtFechaCorta, getNotifications, LogoLR, DIAS_LABEL, CAP_TIPO, TIPO_LABEL, NIVELES, NIVELES_CORTO, progresoTotal } from "../constants"
 
 export function StudentMode({ student, onLogout, consejos = [], schedule = {}, temas = [], onLoadNotas, onAddNota, onDeleteNota }) {
   const [tab, setTab] = useState("cuenta")
@@ -321,12 +321,18 @@ export function StudentMode({ student, onLogout, consejos = [], schedule = {}, t
                 {temas.map(t => (
                   <div key={t.id} style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"11px 14px"}}>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-                      <span style={{fontSize:13,color:B.text,fontWeight:600,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.nombre}</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,color:B.text,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.nombre}</div>
+                        {(habil[t.id]||0)>0 && <div style={{fontSize:10,color:B.gold,marginTop:2}}>{NIVELES[(habil[t.id])-1]}</div>}
+                      </div>
                       <Pips skillId={t.id}/>
                     </div>
                     {(t.subs||[]).map(sub => (
                       <div key={sub.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginTop:8,paddingLeft:12}}>
-                        <span style={{fontSize:12,color:B.textSub,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>› {sub.nombre}</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:12,color:B.textSub,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>› {sub.nombre}</div>
+                          {(habil[sub.id]||0)>0 && <div style={{fontSize:9,color:B.gold,marginTop:1}}>{NIVELES[(habil[sub.id])-1]}</div>}
+                        </div>
                         <Pips skillId={sub.id} small/>
                       </div>
                     ))}
