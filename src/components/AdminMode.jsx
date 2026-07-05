@@ -714,7 +714,7 @@ export function AdminMode({ students, schedule, planes, consejos, temas, onUpdat
     <>
       {view==="dashboard"  && <AdminDashboard  students={students} income={INCOME_DATA}/>}
       {view==="alumnos"    && <AdminAlumnos    students={students} temas={temas} onAdd={onAddStudent} onUpdate={onUpdate} onDelete={onDeleteStudent} onSetHabilidad={onSetHabilidad} planNames={planNames}/>}
-      {view==="asistencia" && <AdminAsistencia students={students} schedule={schedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas}/>}
+      {view==="asistencia" && <AdminAsistencia students={students} schedule={schedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas} onSetHabilidad={onSetHabilidad}/>}
       {view==="pagos"      && <AdminPagos      students={students} onAddPayment={onAddPayment} onUpdatePayment={onUpdatePayment} onRemovePayment={onRemovePayment}/>}
       {view==="agenda"     && <AdminAgenda     schedule={schedule} students={students} onSave={onSaveSchedule}/>}
       {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
