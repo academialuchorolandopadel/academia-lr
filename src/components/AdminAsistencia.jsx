@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react"
 import { B, AT, DIAS_LABEL, hoyDDMM, diaCorto, avatarColor } from "../constants"
 
-export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSaveTemas }) {
+export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSaveTemas, onSetHabilidad }) {
   const [wk, setWk]           = useState(0)
   const [showAll, setShowAll] = useState(false)
   const [searchA, setSearchA] = useState("")
@@ -340,10 +340,50 @@ export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSa
               })}
             </div>
             <div style={{display:"flex",gap:6,marginTop:8}}>
-              <input value={nuevoTema} onChange={e=>setNuevoTema(e.target.value)} placeholder="+ Tema nuevo..."
+              <input value={nuevoTema} onChange={e=>setNuevoTema(e.target.value)} placeholder="+ Golpe/tema nuevo..."
                 style={{flex:1,padding:"8px 10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none"}}/>
               <button onClick={()=>agregarTema(nuevoTema)} style={{padding:"8px 12px",borderRadius:8,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>Agregar</button>
             </div>
+
+            {dTema && onSetHabilidad && (() => {
+              const golpeSel = temas.find(t => t.nombre === dTema)
+              if (!golpeSel) return null
+              const liveS = students.find(x => x.id === det.s.id) || det.s
+              const habil = liveS.habilidades || {}
+              const Pips = ({ skillId }) => {
+                const niv = habil[skillId] || 0
+                return (
+                  <div style={{display:"flex",gap:4}}>
+                    {[1,2,3,4].map(lvl => {
+                      const on = niv>=lvl
+                      return <button key={lvl} onClick={()=>onSetHabilidad(det.s.id, skillId, niv===lvl?lvl-1:lvl)}
+                        style={{width:24,height:24,borderRadius:6,cursor:"pointer",border:`1px solid ${on?B.gold:B.border}`,background:on?B.gold:"transparent",color:on?B.bgDark:B.textSub,fontSize:10,fontWeight:700}}>{lvl}</button>
+                    })}
+                  </div>
+                )
+              }
+              return (
+                <div style={{marginTop:14,background:B.bg,border:`1px solid ${B.goldBorder}`,borderRadius:12,padding:"12px 14px"}}>
+                  <div style={{fontSize:11,color:B.gold,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Nivel conseguido — {golpeSel.nombre}</div>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"4px 0"}}>
+                    <span style={{fontSize:12,color:B.text,fontWeight:600,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{golpeSel.nombre} (general)</span>
+                    <Pips skillId={golpeSel.id}/>
+                  </div>
+                  {(golpeSel.subs||[]).map(sub => (
+                    <div key={sub.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"4px 0 4px 12px"}}>
+                      <span style={{fontSize:12,color:B.textSub,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>› {sub.nombre}</span>
+                      <Pips skillId={sub.id}/>
+                    </div>
+                  ))}
+                  <div style={{display:"flex",gap:5,marginTop:8}}>
+                    <input value={subTxt[golpeSel.id]||""} onChange={e=>setSubTxt(st=>({...st,[golpeSel.id]:e.target.value}))} placeholder="+ sub (derecha, revés...)"
+                      style={{flex:1,padding:"6px 9px",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:7,color:B.text,fontSize:12,outline:"none"}}/>
+                    <button onClick={()=>agregarSub(golpeSel, subTxt[golpeSel.id])} style={{padding:"6px 11px",borderRadius:7,border:`1px solid ${B.goldBorder}`,background:"transparent",color:B.gold,fontSize:12,fontWeight:700,cursor:"pointer"}}>+ sub</button>
+                  </div>
+                  <div style={{fontSize:9,color:B.textMuted,marginTop:8}}>Marcá base y cada sub por separado · se guardan al toque</div>
+                </div>
+              )
+            })()}
 
             <div style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1,margin:"16px 0 6px"}}>Comentario para el alumno</div>
             <textarea value={dComent} onChange={e=>setDComent(e.target.value)} rows={3}
