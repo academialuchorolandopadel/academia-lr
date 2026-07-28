@@ -7,7 +7,7 @@ import {
 import {
   B, AT, LogoLR, INCOME_DATA, MESES, StatCard,
   DIAS_LABEL, hoyDDMM, dateKey, diaCorto, CAP_TIPO, TIPO_LABEL,
-  fmt, fmtFull, fmtFechaCorta, initials, avatarColor, NIVELES_CORTO, progresoTotal,
+  fmt, fmtFull, fmtFechaCorta, initials, avatarColor, NIVELES, NIVELES_CORTO, progresoTotal,
 } from "../constants"
 import { AdminDashboard } from "./AdminDashboard"
 import { AdminConsejos } from "./AdminConsejos"
@@ -172,12 +172,18 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
             {temas.map(t => (
               <div key={t.id} style={{marginBottom:6}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"3px 0"}}>
-                  <span style={{fontSize:12,color:B.text,fontWeight:600,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.nombre}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,color:B.text,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.nombre}</div>
+                    {(habil[t.id]||0)>0 && <div style={{fontSize:10,color:B.gold,marginTop:1}}>{NIVELES[(habil[t.id])-1]}</div>}
+                  </div>
                   <Pips skillId={t.id}/>
                 </div>
                 {(t.subs||[]).map(sub => (
                   <div key={sub.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"3px 0 3px 12px"}}>
-                    <span style={{fontSize:11,color:B.textSub,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>› {sub.nombre}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:11,color:B.textSub,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>› {sub.nombre}</div>
+                      {(habil[sub.id]||0)>0 && <div style={{fontSize:9,color:B.gold,marginTop:1}}>{NIVELES[(habil[sub.id])-1]}</div>}
+                    </div>
                     <Pips skillId={sub.id}/>
                   </div>
                 ))}
@@ -348,6 +354,7 @@ function AdminAgenda({ schedule, students, onSave }) {
   const [sel, setSel]           = useState(null)   // {dia, hora} celda en edición
   const [nuevaHora, setNuevaHora] = useState("")
   const [qPicker, setQPicker]   = useState("")
+  const [copyMsg, setCopyMsg]   = useState("")
 
   const horas = [...(schedule.horas || [])].sort((a,b) => toMin(a) - toMin(b))
   const asign = schedule.asign || {}
@@ -386,6 +393,48 @@ function AdminAgenda({ schedule, students, onSave }) {
     onSave({ ...schedule, horas: horas.filter(x => x !== h), asign: nextAsign, tipos: nextTipos })
   }
 
+  const copiarDisponibles = async () => {
+    const bloques = []
+    DIAS_LABEL.forEach(d => {
+      const lineas = []
+      horas.forEach(h => {
+        const k = keyOf(d, h)
+        const tipo = tipos[k]
+        if (!tipo) return
+        const cap = CAP_TIPO[tipo]
+        const ocup = (asign[k] || []).length
+        if (ocup >= cap) return   // completo, no se muestra
+        const estado = ocup === 0 ? "libre" : `falta ${cap - ocup}`
+        lineas.push(`🕐 ${h} — ${TIPO_LABEL[tipo]} (${estado})`)
+      })
+      if (lineas.length) bloques.push(`${d}\n${lineas.join("\n")}`)
+    })
+    const texto = bloques.length
+      ? `📅 Horarios disponibles\n\n${bloques.join("\n\n")}`
+      : "Por ahora no hay horarios disponibles."
+
+    const marcarCopiado = () => { setCopyMsg("¡Copiado! ✓"); setTimeout(() => setCopyMsg(""), 2200) }
+    try {
+      await navigator.clipboard.writeText(texto)
+      marcarCopiado()
+    } catch {
+      try {
+        const ta = document.createElement("textarea")
+        ta.value = texto
+        ta.style.position = "fixed"
+        ta.style.opacity = "0"
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand("copy")
+        document.body.removeChild(ta)
+        marcarCopiado()
+      } catch {
+        setCopyMsg("No se pudo copiar")
+        setTimeout(() => setCopyMsg(""), 2200)
+      }
+    }
+  }
+
   return (
     <div style={{padding:24}}>
       <div style={{marginBottom:16}}>
@@ -402,6 +451,10 @@ function AdminAgenda({ schedule, students, onSave }) {
         <button onClick={addHora}
           style={{padding:"8px 14px",borderRadius:8,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
           + Agregar horario
+        </button>
+        <button onClick={copiarDisponibles}
+          style={{padding:"8px 14px",borderRadius:8,border:`1px solid ${B.goldBorder}`,background:B.bgCard,color:B.gold,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+          {copyMsg || "📋 Copiar horarios disponibles"}
         </button>
       </div>
 
