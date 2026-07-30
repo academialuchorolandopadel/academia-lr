@@ -1,5 +1,6 @@
 // src/components/AdminDatos.jsx
-import { B, fmtFull, fmtFechaCorta } from "../constants"
+import { useState } from "react"
+import { B, fmtFull, fmtFechaCorta, MESES } from "../constants"
 
 const hoyTxt = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` }
 
@@ -22,6 +23,7 @@ const descargar = (nombre, contenido, tipo) => {
 
 export function AdminDatos({ students, schedule, planes, consejos, income }) {
   const fecha = hoyTxt()
+  const [repMes, setRepMes] = useState(new Date().getMonth())  // 0-indexado
 
   const backupCompleto = () => {
     const data = {
@@ -60,6 +62,35 @@ export function AdminDatos({ students, schedule, planes, consejos, income }) {
       rows.push([s.nombre, a.f, a.m])))
     rows.sort((a,b)=> String(a[0]).localeCompare(String(b[0])))
     descargar(`asistencia-${fecha}.csv`, toCSV(headers, rows), "text/csv")
+  }
+
+  const exportarReporteEconomico = () => {
+    const anio = new Date().getFullYear()   // asistencia hoy no guarda año (asume 2026)
+    const mesNum = repMes + 1               // 1-12, para comparar con pagosDetalle y asistencia
+    const mesLabel = MESES[repMes]
+
+    // Ingresos reales del mes: suma de pagosDetalle con fecha "YYYY-MM-DD" en ese año+mes
+    let totalIngresos = 0, cantPagos = 0
+    students.forEach(s => (s.pagosDetalle||[]).forEach(p => {
+      if (!p.fecha) return
+      const [py, pm] = p.fecha.split("-").map(Number)
+      if (py === anio && pm === mesNum) { totalIngresos += (p.monto||0); cantPagos++ }
+    }))
+
+    // Clases dictadas ese mes: asistencia con marca Presente, Injustificada o Recuperada
+    // (todas implican que la clase se dio, haya ido o no el alumno; "X" a reprogramar no cuenta)
+    let clasesDictadas = 0
+    students.forEach(s => (s.asistencia||[]).forEach(a => {
+      if (!["P","I","R"].includes(a.m)) return
+      const [, mm] = String(a.f).split("/").map(Number)
+      if (mm === mesNum) clasesDictadas++
+    }))
+
+    const promedioClase = clasesDictadas ? Math.round(totalIngresos / clasesDictadas) : 0
+
+    const headers = ["Mes","Año","Ingresos totales","Cantidad de pagos","Clases dictadas","Ingreso promedio por clase"]
+    const rows = [[mesLabel, anio, totalIngresos, cantPagos, clasesDictadas, promedioClase]]
+    descargar(`reporte-economico-${mesLabel.toLowerCase()}-${anio}.csv`, toCSV(headers, rows), "text/csv")
   }
 
   const totalPagos = students.reduce((acc,s)=> acc + (s.pagosDetalle||[]).reduce((b,p)=>b+(p.monto||0),0), 0)
@@ -109,6 +140,24 @@ export function AdminDatos({ students, schedule, planes, consejos, income }) {
           desc="Todas las marcas de asistencia (fecha y resultado) de cada alumno."
           boton="⬇ Descargar asistencia"
           onClick={exportarAsistencia}/>
+
+        <div style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:12,padding:18,display:"flex",flexDirection:"column",gap:10}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:B.text,marginBottom:4}}>Reporte económico mensual (CSV)</div>
+            <div style={{fontSize:12,color:B.textSub,lineHeight:1.5}}>
+              Ingresos reales del mes (desde Pagos), clases dictadas y ingreso promedio por clase.
+              Pensado para comparar contra el costeo por hora y decidir si ajustar tarifas.
+            </div>
+          </div>
+          <select value={repMes} onChange={e=>setRepMes(Number(e.target.value))}
+            style={{padding:"8px 10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none"}}>
+            {MESES.map((m,i) => <option key={m} value={i}>{m}</option>)}
+          </select>
+          <button onClick={exportarReporteEconomico}
+            style={{padding:"10px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+            ⬇ Descargar reporte económico
+          </button>
+        </div>
       </div>
 
       <div style={{fontSize:11,color:B.textMuted,marginTop:18,maxWidth:560,lineHeight:1.6}}>
