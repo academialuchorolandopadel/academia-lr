@@ -64,32 +64,87 @@ export function AdminDatos({ students, schedule, planes, consejos, income }) {
     descargar(`asistencia-${fecha}.csv`, toCSV(headers, rows), "text/csv")
   }
 
+  // Lunes=1 ... Sábado=6 en la convención de Date.getDay(), y su inversa
+  const DIA_A_JSDAY = { "Lunes":1, "Martes":2, "Miércoles":3, "Jueves":4, "Viernes":5, "Sábado":6 }
+  const JSDAY_A_DIA = Object.fromEntries(Object.entries(DIA_A_JSDAY).map(([k,v]) => [v,k]))
+
   const exportarReporteEconomico = () => {
     const anio = new Date().getFullYear()   // asistencia hoy no guarda año (asume 2026)
-    const mesNum = repMes + 1               // 1-12, para comparar con pagosDetalle y asistencia
+    const mesNum = repMes + 1               // 1-12
     const mesLabel = MESES[repMes]
+    const diasEnMes = new Date(anio, mesNum, 0).getDate()
 
-    // Ingresos reales del mes: suma de pagosDetalle con fecha "YYYY-MM-DD" en ese año+mes
-    let totalIngresos = 0, cantPagos = 0
+    // Ingreso cobrado + cantidad de pagos: pagosDetalle con fecha "YYYY-MM-DD" en ese año+mes
+    let ingresoCobrado = 0, cantPagos = 0
     students.forEach(s => (s.pagosDetalle||[]).forEach(p => {
       if (!p.fecha) return
       const [py, pm] = p.fecha.split("-").map(Number)
-      if (py === anio && pm === mesNum) { totalIngresos += (p.monto||0); cantPagos++ }
+      if (py === anio && pm === mesNum) { ingresoCobrado += (p.monto||0); cantPagos++ }
     }))
 
-    // Clases dictadas ese mes: asistencia con marca Presente, Injustificada o Recuperada
-    // (todas implican que la clase se dio, haya ido o no el alumno; "X" a reprogramar no cuenta)
-    let clasesDictadas = 0
+    // Alumno-clases + días trabajados: asistencia P/I/R en el mes (fecha "DD/MM", sin año)
+    let alumnoClases = 0
+    const diasConClase = new Set()
     students.forEach(s => (s.asistencia||[]).forEach(a => {
       if (!["P","I","R"].includes(a.m)) return
       const [, mm] = String(a.f).split("/").map(Number)
-      if (mm === mesNum) clasesDictadas++
+      if (mm !== mesNum) return
+      alumnoClases++
+      diasConClase.add(a.f)
     }))
+    const diasTrabajados = diasConClase.size
 
-    const promedioClase = clasesDictadas ? Math.round(totalIngresos / clasesDictadas) : 0
+    // Horas disponibles / dictadas / formato: recorremos cada día del mes cruzando la Agenda
+    // (asign de hoy) contra la asistencia real de esa fecha. Aproximación: usa la Agenda actual
+    // aplicada a semanas pasadas, y no ve clases que ocurrieron fuera de lo asignado en Agenda.
+    const porNombre    = new Map(students.map(s => [s.nombre, s]))
+    const horasAgenda  = schedule?.horas || []
+    const tiposAgenda  = schedule?.tipos || {}
+    const asignAgenda  = schedule?.asign || {}
 
-    const headers = ["Mes","Año","Ingresos totales","Cantidad de pagos","Clases dictadas","Ingreso promedio por clase"]
-    const rows = [[mesLabel, anio, totalIngresos, cantPagos, clasesDictadas, promedioClase]]
+    let horasDisponibles = 0, horasDictadas = 0
+    let horasIndividual = 0, horasPareja = 0, horasGrupal = 0
+
+    for (let d = 1; d <= diasEnMes; d++) {
+      const jsDay = new Date(anio, mesNum-1, d).getDay()
+      const dia = JSDAY_A_DIA[jsDay]
+      if (!dia) continue   // domingo: sin clases
+      const fechaDia = `${String(d).padStart(2,"0")}/${String(mesNum).padStart(2,"0")}`
+      horasAgenda.forEach(h => {
+        const key = `${dia}|${h}`
+        if (!tiposAgenda[key]) return   // hora no habilitada ese día
+        horasDisponibles++
+        const presentes = (asignAgenda[key] || []).filter(nombre => {
+          const st = porNombre.get(nombre)
+          return st && (st.asistencia||[]).some(a => a.f === fechaDia && ["P","I","R"].includes(a.m))
+        })
+        if (presentes.length === 0) return
+        horasDictadas++
+        if (presentes.length === 1) horasIndividual++
+        else if (presentes.length === 2) horasPareja++
+        else horasGrupal++
+      })
+    }
+
+    const ocupacionPct          = horasDisponibles ? Math.round((horasDictadas/horasDisponibles)*100) : 0
+    const alumnosPromXHora      = horasDictadas ? Math.round((alumnoClases/horasDictadas)*10)/10 : 0
+    const ingresoPorHora        = horasDictadas ? Math.round(ingresoCobrado/horasDictadas) : 0
+    const ingresoPorAlumnoClase = alumnoClases ? Math.round(ingresoCobrado/alumnoClases) : 0
+
+    const headers = [
+      "Mes","Año","Ingreso cobrado","Cantidad de pagos",
+      "Alumno-clases","Días trabajados",
+      "Horas disponibles","Horas dictadas","Ocupación %",
+      "Horas individuales","Horas en pareja","Horas grupales","Alumnos promedio por hora",
+      "Ingreso por hora dictada","Ingreso por alumno-clase",
+    ]
+    const rows = [[
+      mesLabel, anio, ingresoCobrado, cantPagos,
+      alumnoClases, diasTrabajados,
+      horasDisponibles, horasDictadas, ocupacionPct,
+      horasIndividual, horasPareja, horasGrupal, alumnosPromXHora,
+      ingresoPorHora, ingresoPorAlumnoClase,
+    ]]
     descargar(`reporte-economico-${mesLabel.toLowerCase()}-${anio}.csv`, toCSV(headers, rows), "text/csv")
   }
 
@@ -145,8 +200,9 @@ export function AdminDatos({ students, schedule, planes, consejos, income }) {
           <div>
             <div style={{fontSize:14,fontWeight:700,color:B.text,marginBottom:4}}>Reporte económico mensual (CSV)</div>
             <div style={{fontSize:12,color:B.textSub,lineHeight:1.5}}>
-              Ingresos reales del mes (desde Pagos), clases dictadas y ingreso promedio por clase.
-              Pensado para comparar contra el costeo por hora y decidir si ajustar tarifas.
+              Ingreso cobrado, alumno-clases, horas disponibles/dictadas, ocupación, desglose
+              individual/pareja/grupal e ingreso por hora y por alumno-clase. Horas dictadas y
+              formato se estiman cruzando la Agenda actual con la asistencia real del mes.
             </div>
           </div>
           <select value={repMes} onChange={e=>setRepMes(Number(e.target.value))}
