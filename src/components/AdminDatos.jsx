@@ -1,6 +1,6 @@
 // src/components/AdminDatos.jsx
 import { useState } from "react"
-import { B, fmtFull, fmtFechaCorta, MESES } from "../constants"
+import { B, fmtFull, fmtFechaCorta, MESES, CAP_TIPO } from "../constants"
 
 const hoyTxt = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` }
 
@@ -148,6 +148,55 @@ export function AdminDatos({ students, schedule, planes, consejos, income }) {
     descargar(`reporte-economico-${mesLabel.toLowerCase()}-${anio}.csv`, toCSV(headers, rows), "text/csv")
   }
 
+  const exportarDetalleClases = () => {
+    const anio = new Date().getFullYear()
+    const mesNum = repMes + 1
+    const mesLabel = MESES[repMes]
+    const diasEnMes = new Date(anio, mesNum, 0).getDate()
+
+    const porNombre    = new Map(students.map(s => [s.nombre, s]))
+    const horasAgenda   = schedule?.horas || []
+    const tiposAgenda   = schedule?.tipos || {}
+    const asignAgenda   = schedule?.asign || {}
+
+    const filas = []
+    for (let d = 1; d <= diasEnMes; d++) {
+      const jsDay = new Date(anio, mesNum-1, d).getDay()
+      const dia = JSDAY_A_DIA[jsDay]
+      if (!dia) continue
+      const fechaDia = `${String(d).padStart(2,"0")}/${String(mesNum).padStart(2,"0")}`
+      horasAgenda.forEach(h => {
+        const key = `${dia}|${h}`
+        const tipo = tiposAgenda[key]
+        if (!tipo) return   // celda no habilitada
+        const asignados = asignAgenda[key] || []
+        const presentes = asignados.filter(nombre => {
+          const st = porNombre.get(nombre)
+          return st && (st.asistencia||[]).some(a => a.f === fechaDia && ["P","I","R"].includes(a.m))
+        })
+        const cap = CAP_TIPO[tipo] || 0
+        const formatoDerivado = presentes.length===0 ? "" : presentes.length===1 ? "individual" : presentes.length===2 ? "pareja" : "grupal"
+        filas.push([
+          fechaDia, h, tipo,
+          asignados.length, asignados.join(", "),
+          presentes.length, presentes.join(", "),
+          formatoDerivado,
+          asignados.length > cap ? "SÍ" : "No",
+        ])
+      })
+    }
+    filas.sort((a,b) => {
+      const [da,ma] = String(a[0]).split("/").map(Number)
+      const [db,mb] = String(b[0]).split("/").map(Number)
+      if (ma !== mb) return ma - mb
+      if (da !== db) return da - db
+      return String(a[1]).localeCompare(String(b[1]))
+    })
+
+    const headers = ["Fecha","Hora","Tipo configurado","Alumnos asignados","Nombres asignados","Alumnos presentes","Nombres presentes","Formato derivado","¿Asignados > capacidad?"]
+    descargar(`detalle-clases-${mesLabel.toLowerCase()}-${anio}.csv`, toCSV(headers, filas), "text/csv")
+  }
+
   const totalPagos = students.reduce((acc,s)=> acc + (s.pagosDetalle||[]).reduce((b,p)=>b+(p.monto||0),0), 0)
 
   const Card = ({ titulo, desc, boton, onClick, destacado }) => (
@@ -212,6 +261,10 @@ export function AdminDatos({ students, schedule, planes, consejos, income }) {
           <button onClick={exportarReporteEconomico}
             style={{padding:"10px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
             ⬇ Descargar reporte económico
+          </button>
+          <button onClick={exportarDetalleClases}
+            style={{padding:"10px",borderRadius:9,border:`1px solid ${B.goldBorder}`,background:"transparent",color:B.gold,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+            ⬇ Descargar detalle de clases (diagnóstico)
           </button>
         </div>
       </div>
