@@ -125,6 +125,9 @@ export const COACHES = {
   "I5oMaQdW2SOfiI5jdusptFTwcSv1": { nombre: "Lucho Rolando", rol: "head" },
   "nafSoCibj9YX0lUSyWXZR6CLVfi2": { nombre: "Lautaro Gaseli", rol: "profe" },
 }
+// UID del head coach (dueño por defecto de los alumnos existentes)
+export const HEAD_UID = Object.keys(COACHES).find(u => COACHES[u].rol === "head")
+
 export const coachDe = (uid) => ({
   uid,
   nombre: (COACHES[uid] && COACHES[uid].nombre) || "Profe",
