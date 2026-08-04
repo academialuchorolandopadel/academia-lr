@@ -120,6 +120,17 @@ export const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
                       "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
 
 // Ingresos reales 2026 (desde planilla)
+// Registro de profes por UID de Firebase. rol: "head" (ve todo) | "profe" (ve lo suyo)
+export const COACHES = {
+  "I5oMaQdW2SOfiI5jdusptFTwcSv1": { nombre: "Lucho Rolando", rol: "head" },
+  "nafSoCibj9YX0lUSyWXZR6CLVfi2": { nombre: "Lautaro Gaseli", rol: "profe" },
+}
+export const coachDe = (uid) => ({
+  uid,
+  nombre: (COACHES[uid] && COACHES[uid].nombre) || "Profe",
+  rol:    (COACHES[uid] && COACHES[uid].rol)    || "profe",
+})
+
 export const INCOME_DATA = [
   { mes:"Ene", total:6150000,  profe:4305000,  cancha:1845000 },
   { mes:"Feb", total:12265000, profe:8585500,  cancha:3679500 },
