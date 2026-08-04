@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
 import { db } from '../firebase'
-import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL, PLANES, MESES, TEMAS_DEFAULT, normalizeTemas, HEAD_UID } from '../constants'
+import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL, PLANES, MESES, TEMAS_DEFAULT, normalizeTemas, HEAD_UID, COACHES } from '../constants'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const dateKey = (f) => {
@@ -47,6 +47,15 @@ function defaultSchedule() {
     })
   })
   return { horas, asign }
+}
+
+// Agenda vacía (para un profe nuevo, sin asignaciones)
+function emptySchedule() {
+  return { horas: SCHEDULE_SLOTS.map(s => s.hora), asign: {}, tipos: {} }
+}
+// La agenda del head coach vive en /config/horarios (histórica); las demás en /config/horarios_<uid>
+function horariosRef(uid) {
+  return doc(db, 'config', uid === HEAD_UID ? 'horarios' : `horarios_${uid}`)
 }
 
 // ─── Lectura de un alumno completo ────────────────────────────────────────────
@@ -108,7 +117,7 @@ async function syncToFirestore(oldS, newS) {
 // ─── Hook principal ────────────────────────────────────────────────────────────
 export function useAcademia(ready = false) {
   const [students, setStudents] = useState([])
-  const [schedule, setSchedule] = useState({ horas: [], asign: {} })
+  const [schedules, setSchedules] = useState({})
   const [planes, setPlanes]     = useState(PLANES)
   const [consejos, setConsejos] = useState([])
   const [temas, setTemas]       = useState(() => normalizeTemas(TEMAS_DEFAULT))
@@ -131,8 +140,12 @@ export function useAcademia(ready = false) {
         list.sort((a, b) => a.nombre.localeCompare(b.nombre))
         setStudents(list)
         studentsRef.current = list
-        const schSnap = await getDoc(doc(db, 'config', 'horarios'))
-        setSchedule(schSnap.exists() ? schSnap.data() : defaultSchedule())
+        const sch = {}
+        for (const uid of Object.keys(COACHES)) {
+          const snap = await getDoc(horariosRef(uid))
+          sch[uid] = snap.exists() ? snap.data() : (uid === HEAD_UID ? defaultSchedule() : emptySchedule())
+        }
+        setSchedules(sch)
         const planSnap = await getDoc(doc(db, 'config', 'planes'))
         if (planSnap.exists() && Array.isArray(planSnap.data().lista)) setPlanes(planSnap.data().lista)
         const consSnap = await getDoc(doc(db, 'config', 'consejos'))
@@ -319,10 +332,10 @@ export function useAcademia(ready = false) {
     setDoc(doc(db, 'config', 'planes'), { lista }).catch(err => console.error('Planes write error:', err))
   }, [])
 
-  const saveSchedule = useCallback((next) => {
-    setSchedule(next)
-    setDoc(doc(db, 'config', 'horarios'), next).catch(err => console.error('Schedule write error:', err))
+  const saveSchedule = useCallback((uid, next) => {
+    setSchedules(prev => ({ ...prev, [uid]: next }))
+    setDoc(horariosRef(uid), next).catch(err => console.error('Schedule write error:', err))
   }, [])
 
-  return { students, schedule, planes, consejos, temas, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, setHabilidad, loadNotas, addNota, deleteNota }
+  return { students, schedules, planes, consejos, temas, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, setHabilidad, loadNotas, addNota, deleteNota }
 }
