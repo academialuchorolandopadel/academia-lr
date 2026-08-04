@@ -1,7 +1,7 @@
 // src/App.jsx
 import { useState, useEffect } from "react"
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "firebase/auth"
-import { coachDe } from "./constants"
+import { coachDe, HEAD_UID } from "./constants"
 import { auth } from "./firebase"
 import { useAcademia } from "./hooks/useAcademia"
 import { B, LogoLR, PROFE_PIN, PROFE_EMAIL } from "./constants"
@@ -100,7 +100,7 @@ function ProfeAuth({ onSuccess, onCancel }) {
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [authChecked, setAuthChecked]           = useState(false)
-  const { students, schedule, planes, consejos, temas, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, setHabilidad, loadNotas, addNota, deleteNota } = useAcademia(authChecked)
+  const { students, schedules, planes, consejos, temas, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, setHabilidad, loadNotas, addNota, deleteNota } = useAcademia(authChecked)
   const [mode, setMode]                         = useState(null) // null | profe | admin | student
   const [currentStudentId, setCurrentStudentId] = useState(null)
   const [loginError, setLoginError]             = useState("")
@@ -164,8 +164,8 @@ export default function App() {
 
       {mode === null      && <PinPad     onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
       {mode === "profe"   && <ProfeAuth  onSuccess={() => setMode("admin")} onCancel={() => setMode(null)}/>}
-      {mode === "admin"   && <AdminMode  coach={coach} students={students} schedule={schedule} planes={planes} consejos={consejos} temas={temas} onUpdate={updateStudent} onAddStudent={addStudent} onDeleteStudent={deleteStudent} onSaveSchedule={saveSchedule} onSavePlanes={savePlanes} onSaveConsejos={saveConsejos} onSaveTemas={saveTemas} onSetHabilidad={setHabilidad} onAddPayment={addPayment} onUpdatePayment={updatePayment} onRemovePayment={removePayment} onLogout={handleLogout}/>}
-      {mode === "student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout} consejos={consejos} schedule={schedule} temas={temas} onLoadNotas={loadNotas} onAddNota={addNota} onDeleteNota={deleteNota}/>}
+      {mode === "admin"   && <AdminMode  coach={coach} students={students} schedules={schedules} planes={planes} consejos={consejos} temas={temas} onUpdate={updateStudent} onAddStudent={addStudent} onDeleteStudent={deleteStudent} onSaveSchedule={saveSchedule} onSavePlanes={savePlanes} onSaveConsejos={saveConsejos} onSaveTemas={saveTemas} onSetHabilidad={setHabilidad} onAddPayment={addPayment} onUpdatePayment={updatePayment} onRemovePayment={removePayment} onLogout={handleLogout}/>}
+      {mode === "student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout} consejos={consejos} schedule={(schedules && schedules[currentStudent.dueno || HEAD_UID]) || { horas: [], asign: {} }} temas={temas} onLoadNotas={loadNotas} onAddNota={addNota} onDeleteNota={deleteNota}/>}
     </>
   )
 }
