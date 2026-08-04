@@ -7,7 +7,7 @@ import {
 import {
   B, AT, LogoLR, INCOME_DATA, MESES, StatCard,
   DIAS_LABEL, hoyDDMM, dateKey, diaCorto, CAP_TIPO, TIPO_LABEL,
-  fmt, fmtFull, fmtFechaCorta, initials, avatarColor, NIVELES, NIVELES_CORTO, progresoTotal,
+  fmt, fmtFull, fmtFechaCorta, initials, avatarColor, NIVELES, NIVELES_CORTO, progresoTotal, COACHES, HEAD_UID,
 } from "../constants"
 import { AdminDashboard } from "./AdminDashboard"
 import { AdminConsejos } from "./AdminConsejos"
@@ -220,7 +220,7 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
   )
 }
 
-function AdminAlumnos({ students, temas = [], onAdd, onUpdate, onDelete, onSetHabilidad, planNames = [] }) {
+function AdminAlumnos({ students, temas = [], onAdd, onUpdate, onDelete, onSetHabilidad, planNames = [], showDueno = false, duenoNombre = () => "" }) {
   const [search, setSearch]   = useState("")
   const [filter, setFilter]   = useState("Vigentes")
   const [selId, setSelId]     = useState(null)
@@ -311,6 +311,7 @@ function AdminAlumnos({ students, temas = [], onAdd, onUpdate, onDelete, onSetHa
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
                       <div style={{width:28,height:28,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:B.gold,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
                       <span style={{fontSize:12,color:B.text,fontWeight:500}}>{s.nombre}</span>
+                      {showDueno && <span style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:.5,padding:"2px 7px",borderRadius:12,background:"rgba(96,165,250,.12)",border:"1px solid rgba(96,165,250,.35)",color:"#93b4f5",whiteSpace:"nowrap"}}>{duenoNombre(s.dueno)}</span>}
                     </div>
                   </td>
                   <td style={{padding:"10px 12px"}}>
@@ -725,20 +726,46 @@ function AdminTopNav({ coach, active, onNav, onLogout }) {
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
 export function AdminMode({ coach, students, schedule, planes, consejos, temas, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onSaveTemas, onSetHabilidad, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
+  const [verProfe, setVerProfe] = useState("todos")
   const isMobile = useIsMobile()
   const planNames = (planes || []).map(p => p.nombre)
 
+  const esHead = coach?.rol === "head"
+  const visibles = (students || []).filter(s => {
+    const d = s.dueno || HEAD_UID
+    if (!esHead) return d === coach?.uid
+    return verProfe === "todos" ? true : d === verProfe
+  })
+  const duenoNuevo = !esHead ? coach?.uid : (verProfe !== "todos" ? verProfe : coach?.uid)
+  const addConDueno = (data) => onAddStudent({ ...data, dueno: duenoNuevo })
+  const duenoNombre = (uid) => (COACHES[uid] && COACHES[uid].nombre) || "—"
+
+  const barraProfes = esHead ? (
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 24px",background:B.goldBg,borderBottom:`1px solid ${B.goldBorder}`,flexWrap:"wrap"}}>
+      <span style={{fontSize:12,color:B.textSub}}>👁 Viendo alumnos de:</span>
+      <select value={verProfe} onChange={e=>setVerProfe(e.target.value)}
+        style={{background:B.bgCard,border:`1px solid ${B.goldBorder}`,borderRadius:8,color:B.gold,fontSize:13,fontWeight:700,padding:"6px 10px",outline:"none"}}>
+        <option value="todos">Todos ({(students||[]).length})</option>
+        {Object.entries(COACHES).map(([uid,c]) => (
+          <option key={uid} value={uid}>{c.nombre}</option>
+        ))}
+      </select>
+      {verProfe!=="todos" && <span style={{fontSize:12,color:B.textSub}}>· {visibles.length} alumno{visibles.length===1?"":"s"}</span>}
+    </div>
+  ) : null
+
   const renderView = () => (
     <>
-      {view==="dashboard"  && <AdminDashboard  students={students} income={INCOME_DATA}/>}
-      {view==="alumnos"    && <AdminAlumnos    students={students} temas={temas} onAdd={onAddStudent} onUpdate={onUpdate} onDelete={onDeleteStudent} onSetHabilidad={onSetHabilidad} planNames={planNames}/>}
-      {view==="asistencia" && <AdminAsistencia students={students} schedule={schedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas} onSetHabilidad={onSetHabilidad}/>}
-      {view==="pagos"      && <AdminPagos      students={students} onAddPayment={onAddPayment} onUpdatePayment={onUpdatePayment} onRemovePayment={onRemovePayment}/>}
-      {view==="agenda"     && <AdminAgenda     schedule={schedule} students={students} onSave={onSaveSchedule}/>}
+      {barraProfes}
+      {view==="dashboard"  && <AdminDashboard  students={visibles} income={INCOME_DATA}/>}
+      {view==="alumnos"    && <AdminAlumnos    students={visibles} temas={temas} onAdd={addConDueno} onUpdate={onUpdate} onDelete={onDeleteStudent} onSetHabilidad={onSetHabilidad} planNames={planNames} showDueno={esHead && verProfe==="todos"} duenoNombre={duenoNombre}/>}
+      {view==="asistencia" && <AdminAsistencia students={visibles} schedule={schedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas} onSetHabilidad={onSetHabilidad}/>}
+      {view==="pagos"      && <AdminPagos      students={visibles} onAddPayment={onAddPayment} onUpdatePayment={onUpdatePayment} onRemovePayment={onRemovePayment}/>}
+      {view==="agenda"     && <AdminAgenda     schedule={schedule} students={visibles} onSave={onSaveSchedule}/>}
       {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
       {view==="planes"     && <AdminPlanes     planes={planes} onSave={onSavePlanes}/>}
       {view==="consejos"   && <AdminConsejos   consejos={consejos} onSave={onSaveConsejos}/>}
-      {view==="datos"      && <AdminDatos      students={students} schedule={schedule} planes={planes} consejos={consejos} income={INCOME_DATA}/>}
+      {view==="datos"      && <AdminDatos      students={visibles} schedule={schedule} planes={planes} consejos={consejos} income={INCOME_DATA}/>}
     </>
   )
 
