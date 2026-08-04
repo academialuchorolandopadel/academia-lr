@@ -724,7 +724,7 @@ function AdminTopNav({ coach, active, onNav, onLogout }) {
 }
 
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
-export function AdminMode({ coach, students, schedule, planes, consejos, temas, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onSaveTemas, onSetHabilidad, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
+export function AdminMode({ coach, students, schedules, planes, consejos, temas, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onSaveTemas, onSetHabilidad, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
   const [verProfe, setVerProfe] = useState("todos")
   const isMobile = useIsMobile()
@@ -739,6 +739,9 @@ export function AdminMode({ coach, students, schedule, planes, consejos, temas, 
   const duenoNuevo = !esHead ? coach?.uid : (verProfe !== "todos" ? verProfe : coach?.uid)
   const addConDueno = (data) => onAddStudent({ ...data, dueno: duenoNuevo })
   const duenoNombre = (uid) => (COACHES[uid] && COACHES[uid].nombre) || "—"
+  const activeAgendaUid = duenoNuevo // = tu uid; o el profe elegido si sos head
+  const activeSchedule  = (schedules && schedules[activeAgendaUid]) || { horas: [], asign: {} }
+  const guardarAgenda   = (next) => onSaveSchedule(activeAgendaUid, next)
 
   const barraProfes = esHead ? (
     <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 24px",background:B.goldBg,borderBottom:`1px solid ${B.goldBorder}`,flexWrap:"wrap"}}>
@@ -751,6 +754,7 @@ export function AdminMode({ coach, students, schedule, planes, consejos, temas, 
         ))}
       </select>
       {verProfe!=="todos" && <span style={{fontSize:12,color:B.textSub}}>· {visibles.length} alumno{visibles.length===1?"":"s"}</span>}
+      {(view==="agenda"||view==="asistencia") && verProfe==="todos" && <span style={{fontSize:11,color:B.textSub}}>· agenda/asistencia: mostrando la tuya</span>}
     </div>
   ) : null
 
@@ -759,13 +763,13 @@ export function AdminMode({ coach, students, schedule, planes, consejos, temas, 
       {barraProfes}
       {view==="dashboard"  && <AdminDashboard  students={visibles} income={INCOME_DATA}/>}
       {view==="alumnos"    && <AdminAlumnos    students={visibles} temas={temas} onAdd={addConDueno} onUpdate={onUpdate} onDelete={onDeleteStudent} onSetHabilidad={onSetHabilidad} planNames={planNames} showDueno={esHead && verProfe==="todos"} duenoNombre={duenoNombre}/>}
-      {view==="asistencia" && <AdminAsistencia students={visibles} schedule={schedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas} onSetHabilidad={onSetHabilidad}/>}
+      {view==="asistencia" && <AdminAsistencia students={visibles} schedule={activeSchedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas} onSetHabilidad={onSetHabilidad}/>}
       {view==="pagos"      && <AdminPagos      students={visibles} onAddPayment={onAddPayment} onUpdatePayment={onUpdatePayment} onRemovePayment={onRemovePayment}/>}
-      {view==="agenda"     && <AdminAgenda     schedule={schedule} students={visibles} onSave={onSaveSchedule}/>}
+      {view==="agenda"     && <AdminAgenda     schedule={activeSchedule} students={visibles} onSave={guardarAgenda}/>}
       {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
       {view==="planes"     && <AdminPlanes     planes={planes} onSave={onSavePlanes}/>}
       {view==="consejos"   && <AdminConsejos   consejos={consejos} onSave={onSaveConsejos}/>}
-      {view==="datos"      && <AdminDatos      students={visibles} schedule={schedule} planes={planes} consejos={consejos} income={INCOME_DATA}/>}
+      {view==="datos"      && <AdminDatos      students={visibles} schedule={activeSchedule} planes={planes} consejos={consejos} income={INCOME_DATA}/>}
     </>
   )
 
