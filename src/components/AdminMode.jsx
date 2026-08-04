@@ -28,14 +28,20 @@ const ADMIN_NAV = [
 ]
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
-function AdminSidebar({ active, onNav, onLogout }) {
+function AdminSidebar({ coach, active, onNav, onLogout }) {
   return (
     <div style={{width:200,background:B.bgDark,borderRight:`1px solid ${B.border}`,display:"flex",flexDirection:"column",flexShrink:0}}>
       <div style={{padding:"20px 16px",borderBottom:`1px solid ${B.border}`,display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
         <LogoLR size={44}/>
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:12,fontWeight:700,color:B.gold,letterSpacing:2,textTransform:"uppercase"}}>Academia LR</div>
-          <div style={{fontSize:10,color:B.textSub,marginTop:2}}>Modo Profe</div>
+          <div style={{fontSize:10,color:B.textSub,marginTop:2}}>{coach?.nombre || "Profe"}</div>
+          <div style={{display:"inline-block",marginTop:5,fontSize:8,fontWeight:800,textTransform:"uppercase",letterSpacing:1,padding:"3px 8px",borderRadius:10,
+            ...(coach?.rol==="head"
+              ? {background:B.goldBg,border:`1px solid ${B.goldBorder}`,color:B.gold}
+              : {background:"rgba(96,165,250,.12)",border:"1px solid rgba(96,165,250,.4)",color:"#93b4f5"})}}>
+            {coach?.rol==="head" ? "Head Coach" : "Profe"}
+          </div>
         </div>
       </div>
       <nav style={{flex:1,padding:"10px 6px",display:"flex",flexDirection:"column",gap:2}}>
@@ -354,7 +360,6 @@ function AdminAgenda({ schedule, students, onSave }) {
   const [sel, setSel]           = useState(null)   // {dia, hora} celda en edición
   const [nuevaHora, setNuevaHora] = useState("")
   const [qPicker, setQPicker]   = useState("")
-  const [copyMsg, setCopyMsg]   = useState("")
 
   const horas = [...(schedule.horas || [])].sort((a,b) => toMin(a) - toMin(b))
   const asign = schedule.asign || {}
@@ -393,48 +398,6 @@ function AdminAgenda({ schedule, students, onSave }) {
     onSave({ ...schedule, horas: horas.filter(x => x !== h), asign: nextAsign, tipos: nextTipos })
   }
 
-  const copiarDisponibles = async () => {
-    const bloques = []
-    DIAS_LABEL.forEach(d => {
-      const lineas = []
-      horas.forEach(h => {
-        const k = keyOf(d, h)
-        const tipo = tipos[k]
-        if (!tipo) return
-        const cap = CAP_TIPO[tipo]
-        const ocup = (asign[k] || []).length
-        if (ocup >= cap) return   // completo, no se muestra
-        const estado = ocup === 0 ? "libre" : `falta ${cap - ocup}`
-        lineas.push(`🕐 ${h} — ${TIPO_LABEL[tipo]} (${estado})`)
-      })
-      if (lineas.length) bloques.push(`${d}\n${lineas.join("\n")}`)
-    })
-    const texto = bloques.length
-      ? `📅 Horarios disponibles\n\n${bloques.join("\n\n")}`
-      : "Por ahora no hay horarios disponibles."
-
-    const marcarCopiado = () => { setCopyMsg("¡Copiado! ✓"); setTimeout(() => setCopyMsg(""), 2200) }
-    try {
-      await navigator.clipboard.writeText(texto)
-      marcarCopiado()
-    } catch {
-      try {
-        const ta = document.createElement("textarea")
-        ta.value = texto
-        ta.style.position = "fixed"
-        ta.style.opacity = "0"
-        document.body.appendChild(ta)
-        ta.select()
-        document.execCommand("copy")
-        document.body.removeChild(ta)
-        marcarCopiado()
-      } catch {
-        setCopyMsg("No se pudo copiar")
-        setTimeout(() => setCopyMsg(""), 2200)
-      }
-    }
-  }
-
   return (
     <div style={{padding:24}}>
       <div style={{marginBottom:16}}>
@@ -451,10 +414,6 @@ function AdminAgenda({ schedule, students, onSave }) {
         <button onClick={addHora}
           style={{padding:"8px 14px",borderRadius:8,border:"none",background:B.gold,color:B.bgDark,fontSize:13,fontWeight:700,cursor:"pointer"}}>
           + Agregar horario
-        </button>
-        <button onClick={copiarDisponibles}
-          style={{padding:"8px 14px",borderRadius:8,border:`1px solid ${B.goldBorder}`,background:B.bgCard,color:B.gold,fontSize:13,fontWeight:600,cursor:"pointer"}}>
-          {copyMsg || "📋 Copiar horarios disponibles"}
         </button>
       </div>
 
@@ -726,7 +685,7 @@ function useIsMobile(bp = 720) {
 }
 
 // ─── Barra superior (celular) ─────────────────────────────────────────────────
-function AdminTopNav({ active, onNav, onLogout }) {
+function AdminTopNav({ coach, active, onNav, onLogout }) {
   return (
     <div style={{background:B.bgDark,borderBottom:`1px solid ${B.border}`,position:"sticky",top:0,zIndex:100}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px"}}>
@@ -734,7 +693,13 @@ function AdminTopNav({ active, onNav, onLogout }) {
           <LogoLR size={28}/>
           <div>
             <div style={{fontSize:11,fontWeight:700,color:B.gold,letterSpacing:2,textTransform:"uppercase"}}>Academia LR</div>
-            <div style={{fontSize:9,color:B.textSub}}>Modo Profe</div>
+            <div style={{fontSize:9,color:B.textSub}}>{coach?.nombre || "Profe"}</div>
+            <span style={{display:"inline-block",marginTop:3,fontSize:7,fontWeight:800,textTransform:"uppercase",letterSpacing:1,padding:"2px 6px",borderRadius:8,
+              ...(coach?.rol==="head"
+                ? {background:B.goldBg,border:`1px solid ${B.goldBorder}`,color:B.gold}
+                : {background:"rgba(96,165,250,.12)",border:"1px solid rgba(96,165,250,.4)",color:"#93b4f5"})}}>
+              {coach?.rol==="head" ? "Head Coach" : "Profe"}
+            </span>
           </div>
         </div>
         <button onClick={onLogout}
@@ -758,7 +723,7 @@ function AdminTopNav({ active, onNav, onLogout }) {
 }
 
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
-export function AdminMode({ students, schedule, planes, consejos, temas, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onSaveTemas, onSetHabilidad, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
+export function AdminMode({ coach, students, schedule, planes, consejos, temas, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onSaveTemas, onSetHabilidad, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
   const isMobile = useIsMobile()
   const planNames = (planes || []).map(p => p.nombre)
@@ -781,7 +746,7 @@ export function AdminMode({ students, schedule, planes, consejos, temas, onUpdat
   if (isMobile) {
     return (
       <div style={{minHeight:"100vh",background:B.bg,color:B.text,fontFamily:"'Segoe UI',system-ui,sans-serif"}}>
-        <AdminTopNav active={view} onNav={setView} onLogout={onLogout}/>
+        <AdminTopNav coach={coach} active={view} onNav={setView} onLogout={onLogout}/>
         <main>{renderView()}</main>
       </div>
     )
@@ -790,7 +755,7 @@ export function AdminMode({ students, schedule, planes, consejos, temas, onUpdat
   // Tablet / escritorio: barra lateral
   return (
     <div style={{display:"flex",height:"100vh",background:B.bg,color:B.text,fontFamily:"'Segoe UI',system-ui,sans-serif",overflow:"hidden"}}>
-      <AdminSidebar active={view} onNav={setView} onLogout={onLogout}/>
+      <AdminSidebar coach={coach} active={view} onNav={setView} onLogout={onLogout}/>
       <main style={{flex:1,overflowY:"auto"}}>{renderView()}</main>
     </div>
   )
