@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
 import { db } from '../firebase'
-import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL, PLANES, MESES, TEMAS_DEFAULT, normalizeTemas } from '../constants'
+import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL, PLANES, MESES, TEMAS_DEFAULT, normalizeTemas, HEAD_UID } from '../constants'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const dateKey = (f) => {
@@ -74,6 +74,7 @@ async function fetchAlumnoFull(docSnap) {
   base.estado = computeEstado(base.abonadas, base.realizadas)
   base.archivado = base.archivado || false
   base.habilidades = base.habilidades || {}
+  base.dueno = base.dueno || HEAD_UID
   return base
 }
 
@@ -242,6 +243,7 @@ export function useAcademia(ready = false) {
       plan: data.plan || '8 Clases',
       abonadas, realizadas: 0,
       email: data.email || '', tel: data.tel || '',
+      dueno: data.dueno || HEAD_UID,
     }
     try {
       const ref = await addDoc(collection(db, 'alumnos'), base)
