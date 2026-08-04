@@ -36,42 +36,56 @@ function ErrorScreen({ error }) {
 
 // ─── Login del profe (contraseña Firebase Auth) ───────────────────────────────
 function ProfeAuth({ onSuccess, onCancel }) {
+  const [email, setEmail] = useState("")
   const [pw, setPw]     = useState("")
   const [err, setErr]   = useState("")
   const [busy, setBusy] = useState(false)
 
   const submit = async () => {
-    if (!pw || busy) return
+    if (!email.trim() || !pw || busy) return
     setBusy(true); setErr("")
     try {
-      await signInWithEmailAndPassword(auth, PROFE_EMAIL, pw)
+      await signInWithEmailAndPassword(auth, email.trim(), pw)
       onSuccess()
     } catch (e) {
-      setErr("Contraseña incorrecta.")
+      setErr("Email o contraseña incorrectos.")
       setBusy(false)
     }
   }
+
+  const inputStyle = (bad) => ({width:"100%",padding:"12px 14px",background:"rgba(30,58,95,0.4)",border:`1px solid ${bad?B.dangerBorder:B.border}`,borderRadius:12,color:B.text,fontSize:15,outline:"none",marginBottom:10})
 
   return (
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:`linear-gradient(160deg,${B.bgDark} 0%,${B.bg} 60%,#0c1520 100%)`,padding:24,fontFamily:"'Segoe UI',sans-serif"}}>
       <div style={{width:"100%",maxWidth:340,background:"rgba(10,20,40,0.85)",backdropFilter:"blur(24px)",border:`1px solid ${B.goldBorder}`,borderRadius:24,padding:"36px 28px",boxShadow:"0 40px 80px rgba(0,0,0,0.6)"}}>
         <div style={{display:"flex",justifyContent:"center",marginBottom:14}}><LogoLR size={56}/></div>
         <div style={{textAlign:"center",fontSize:18,fontWeight:700,color:B.gold,letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>Modo Profe</div>
-        <div style={{textAlign:"center",fontSize:11,color:B.textSub,marginBottom:24,letterSpacing:1}}>Ingresá tu contraseña</div>
+        <div style={{textAlign:"center",fontSize:11,color:B.textSub,marginBottom:24,letterSpacing:1}}>Ingresá tu email y contraseña</div>
 
+        <input
+          type="email"
+          value={email}
+          autoFocus
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          onChange={e => { setEmail(e.target.value); setErr("") }}
+          onKeyDown={e => { if (e.key === "Enter") submit() }}
+          placeholder="Email"
+          style={inputStyle(err)}
+        />
         <input
           type="password"
           value={pw}
-          autoFocus
           onChange={e => { setPw(e.target.value); setErr("") }}
           onKeyDown={e => { if (e.key === "Enter") submit() }}
           placeholder="Contraseña"
-          style={{width:"100%",padding:"12px 14px",background:"rgba(30,58,95,0.4)",border:`1px solid ${err?B.dangerBorder:B.border}`,borderRadius:12,color:B.text,fontSize:15,outline:"none",marginBottom:6}}
+          style={inputStyle(err)}
         />
         {err && <div style={{fontSize:12,color:"#f87171",marginBottom:6,textAlign:"center"}}>{err}</div>}
 
         <button onClick={submit} disabled={busy}
-          style={{width:"100%",marginTop:10,padding:"12px",borderRadius:12,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:busy?"default":"pointer",opacity:busy?0.6:1}}>
+          style={{width:"100%",marginTop:6,padding:"12px",borderRadius:12,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:busy?"default":"pointer",opacity:busy?0.6:1}}>
           {busy ? "Verificando..." : "Entrar"}
         </button>
         <button onClick={onCancel}
