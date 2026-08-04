@@ -1,6 +1,7 @@
 // src/App.jsx
 import { useState, useEffect } from "react"
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "firebase/auth"
+import { coachDe } from "./constants"
 import { auth } from "./firebase"
 import { useAcademia } from "./hooks/useAcademia"
 import { B, LogoLR, PROFE_PIN, PROFE_EMAIL } from "./constants"
@@ -89,6 +90,7 @@ export default function App() {
   const [mode, setMode]                         = useState(null) // null | profe | admin | student
   const [currentStudentId, setCurrentStudentId] = useState(null)
   const [loginError, setLoginError]             = useState("")
+  const [coach, setCoach]                       = useState(null)
 
   // Sesión: el profe entra con email + contraseña. Los alumnos usan un login
   // anónimo (solo para obtener un token y poder LEER; no pueden escribir datos).
@@ -99,7 +101,7 @@ export default function App() {
         catch (e) { console.error("Anon auth error:", e); setAuthChecked(true) }
         return
       }
-      if (!user.isAnonymous) setMode("admin")   // profe
+      if (!user.isAnonymous) { setCoach(coachDe(user.uid)); setMode("admin") }   // profe
       setAuthChecked(true)
     })
     return unsub
@@ -148,7 +150,7 @@ export default function App() {
 
       {mode === null      && <PinPad     onSubmit={handleLogin} error={loginError} setError={setLoginError}/>}
       {mode === "profe"   && <ProfeAuth  onSuccess={() => setMode("admin")} onCancel={() => setMode(null)}/>}
-      {mode === "admin"   && <AdminMode  students={students} schedule={schedule} planes={planes} consejos={consejos} temas={temas} onUpdate={updateStudent} onAddStudent={addStudent} onDeleteStudent={deleteStudent} onSaveSchedule={saveSchedule} onSavePlanes={savePlanes} onSaveConsejos={saveConsejos} onSaveTemas={saveTemas} onSetHabilidad={setHabilidad} onAddPayment={addPayment} onUpdatePayment={updatePayment} onRemovePayment={removePayment} onLogout={handleLogout}/>}
+      {mode === "admin"   && <AdminMode  coach={coach} students={students} schedule={schedule} planes={planes} consejos={consejos} temas={temas} onUpdate={updateStudent} onAddStudent={addStudent} onDeleteStudent={deleteStudent} onSaveSchedule={saveSchedule} onSavePlanes={savePlanes} onSaveConsejos={saveConsejos} onSaveTemas={saveTemas} onSetHabilidad={setHabilidad} onAddPayment={addPayment} onUpdatePayment={updatePayment} onRemovePayment={removePayment} onLogout={handleLogout}/>}
       {mode === "student" && currentStudent && <StudentMode student={currentStudent} onLogout={handleLogout} consejos={consejos} schedule={schedule} temas={temas} onLoadNotas={loadNotas} onAddNota={addNota} onDeleteNota={deleteNota}/>}
     </>
   )
