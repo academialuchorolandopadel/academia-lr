@@ -12,6 +12,7 @@ import {
 import { AdminDashboard } from "./AdminDashboard"
 import { AdminConsejos } from "./AdminConsejos"
 import { AdminDatos } from "./AdminDatos"
+import { AdminCancha } from "./AdminCancha"
 import { AdminAsistencia } from "./AdminAsistencia"
 import { AdminPagos } from "./AdminPagos"
 
@@ -21,6 +22,7 @@ const ADMIN_NAV = [
   { id:"asistencia", label:"Asistencia", emoji:"◈" },
   { id:"pagos",      label:"Pagos",      emoji:"◇" },
   { id:"agenda",     label:"Agenda",     emoji:"◻" },
+  { id:"cancha",     label:"Cancha",     emoji:"▦" },
   { id:"ingresos",   label:"Ingresos",   emoji:"△" },
   { id:"planes",     label:"Planes",     emoji:"❖" },
   { id:"consejos",   label:"Consejos",   emoji:"💡" },
@@ -724,7 +726,7 @@ function AdminTopNav({ coach, active, onNav, onLogout }) {
 }
 
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
-export function AdminMode({ coach, students, schedules, planes, consejos, temas, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onSaveTemas, onSetHabilidad, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
+export function AdminMode({ coach, students, schedules, planes, consejos, temas, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onSaveTemas, onSetHabilidad, canchaRate, onSaveCanchaRate, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
   const [verProfe, setVerProfe] = useState("todos")
   const isMobile = useIsMobile()
@@ -769,6 +771,7 @@ export function AdminMode({ coach, students, schedules, planes, consejos, temas,
       {view==="asistencia" && <AdminAsistencia students={visibles} schedule={activeSchedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas} onSetHabilidad={onSetHabilidad}/>}
       {view==="pagos"      && <AdminPagos      students={visibles} onAddPayment={onAddPayment} onUpdatePayment={onUpdatePayment} onRemovePayment={onRemovePayment}/>}
       {view==="agenda"     && <AdminAgenda     schedule={activeSchedule} students={visibles} onSave={guardarAgenda}/>}
+      {view==="cancha"     && <AdminCancha     students={visibles} rate={canchaRate} onSaveRate={onSaveCanchaRate}/>}
       {view==="ingresos"   && <AdminIngresos   income={incomeAuto}/>}
       {view==="planes"     && <AdminPlanes     planes={planes} onSave={onSavePlanes}/>}
       {view==="consejos"   && <AdminConsejos   consejos={consejos} onSave={onSaveConsejos}/>}
