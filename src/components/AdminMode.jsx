@@ -492,6 +492,24 @@ function AdminAgenda({ schedule, students, onSave }) {
               return <div style={{fontSize:11,color:cnt>=cap?"#f87171":B.textSub,marginBottom:8}}>Ocupados {cnt}/{cap}{cnt>=cap?" · COMPLETO":` · ${cap-cnt} lugar(es) libre(s)`}</div>
             })()}
             <div style={{fontSize:11,color:B.textSub,marginBottom:10}}>Tocá un alumno para agregar o quitar</div>
+            {(asign[keyOf(sel.dia,sel.hora)]||[]).length > 0 && (
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Asignados</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {(asign[keyOf(sel.dia,sel.hora)]||[]).map(nombre => {
+                    const existe = activos.some(s => s.nombre === nombre)
+                    return (
+                      <span key={nombre} style={{display:"inline-flex",alignItems:"center",gap:7,padding:"5px 10px",borderRadius:16,fontSize:12,fontWeight:600,
+                        border:`1px solid ${existe?B.goldBorder:B.dangerBorder}`,background:existe?B.goldBg:B.dangerBg,color:existe?B.gold:"#f87171"}}>
+                        {nombre}{!existe && " · ya no existe"}
+                        <button onClick={()=>toggle(sel.dia,sel.hora,nombre)}
+                          style={{background:"transparent",border:"none",color:"inherit",cursor:"pointer",fontSize:14,padding:0,lineHeight:1}}>✕</button>
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <input value={qPicker} onChange={e=>setQPicker(e.target.value)} placeholder="🔍 Buscar alumno..."
               style={{padding:"8px 11px",marginBottom:10,background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none"}}/>
             <div style={{overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
