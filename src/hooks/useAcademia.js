@@ -121,6 +121,7 @@ export function useAcademia(ready = false) {
   const [planes, setPlanes]     = useState(PLANES)
   const [consejos, setConsejos] = useState([])
   const [temas, setTemas]       = useState(() => normalizeTemas(TEMAS_DEFAULT))
+  const [canchaRate, setCanchaRate] = useState(25000)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const studentsRef = useRef([])
@@ -152,6 +153,8 @@ export function useAcademia(ready = false) {
         if (consSnap.exists() && Array.isArray(consSnap.data().items)) setConsejos(consSnap.data().items)
         const temasSnap = await getDoc(doc(db, 'config', 'temas'))
         if (temasSnap.exists() && Array.isArray(temasSnap.data().lista)) setTemas(normalizeTemas(temasSnap.data().lista))
+        const cchSnap = await getDoc(doc(db, 'config', 'cancha'))
+        if (cchSnap.exists() && typeof cchSnap.data().porClase === 'number') setCanchaRate(cchSnap.data().porClase)
       } catch (err) {
         console.error('Firestore load error:', err)
         setError(err.message)
@@ -308,6 +311,12 @@ export function useAcademia(ready = false) {
     await deleteDoc(doc(db, 'alumnos', id, 'notas', notaId))
   }, [])
 
+  const saveCanchaRate = useCallback((v) => {
+    const n = Number(v) || 0
+    setCanchaRate(n)
+    setDoc(doc(db, 'config', 'cancha'), { porClase: n }).catch(err => console.error('Cancha rate write error:', err))
+  }, [])
+
   const saveTemas = useCallback((lista) => {
     const norm = normalizeTemas(lista)
     setTemas(norm)
@@ -337,5 +346,5 @@ export function useAcademia(ready = false) {
     setDoc(horariosRef(uid), next).catch(err => console.error('Schedule write error:', err))
   }, [])
 
-  return { students, schedules, planes, consejos, temas, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, setHabilidad, loadNotas, addNota, deleteNota }
+  return { students, schedules, planes, consejos, temas, canchaRate, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, saveCanchaRate, setHabilidad, loadNotas, addNota, deleteNota }
 }
