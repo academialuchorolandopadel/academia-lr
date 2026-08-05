@@ -7,7 +7,7 @@ import {
 import {
   B, AT, LogoLR, INCOME_DATA, MESES, StatCard,
   DIAS_LABEL, hoyDDMM, dateKey, diaCorto, CAP_TIPO, TIPO_LABEL,
-  fmt, fmtFull, fmtFechaCorta, initials, avatarColor, NIVELES, NIVELES_CORTO, progresoTotal, COACHES, HEAD_UID,
+  fmt, fmtFull, fmtFechaCorta, initials, avatarColor, NIVELES, NIVELES_CORTO, progresoTotal, COACHES, HEAD_UID, ingresosMensuales,
 } from "../constants"
 import { AdminDashboard } from "./AdminDashboard"
 import { AdminConsejos } from "./AdminConsejos"
@@ -742,6 +742,9 @@ export function AdminMode({ coach, students, schedules, planes, consejos, temas,
   const activeAgendaUid = duenoNuevo // = tu uid; o el profe elegido si sos head
   const activeSchedule  = (schedules && schedules[activeAgendaUid]) || { horas: [], asign: {} }
   const guardarAgenda   = (next) => onSaveSchedule(activeAgendaUid, next)
+  // Ingresos: automáticos desde los pagos de los alumnos visibles + historial fijo (solo para el head)
+  const conSeed   = esHead && (verProfe === "todos" || verProfe === HEAD_UID)
+  const incomeAuto = ingresosMensuales(visibles, new Date().getFullYear(), conSeed)
 
   const barraProfes = esHead ? (
     <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 24px",background:B.goldBg,borderBottom:`1px solid ${B.goldBorder}`,flexWrap:"wrap"}}>
@@ -761,15 +764,15 @@ export function AdminMode({ coach, students, schedules, planes, consejos, temas,
   const renderView = () => (
     <>
       {barraProfes}
-      {view==="dashboard"  && <AdminDashboard  students={visibles} income={INCOME_DATA}/>}
+      {view==="dashboard"  && <AdminDashboard  students={visibles} income={incomeAuto}/>}
       {view==="alumnos"    && <AdminAlumnos    students={visibles} temas={temas} onAdd={addConDueno} onUpdate={onUpdate} onDelete={onDeleteStudent} onSetHabilidad={onSetHabilidad} planNames={planNames} showDueno={esHead && verProfe==="todos"} duenoNombre={duenoNombre}/>}
       {view==="asistencia" && <AdminAsistencia students={visibles} schedule={activeSchedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas} onSetHabilidad={onSetHabilidad}/>}
       {view==="pagos"      && <AdminPagos      students={visibles} onAddPayment={onAddPayment} onUpdatePayment={onUpdatePayment} onRemovePayment={onRemovePayment}/>}
       {view==="agenda"     && <AdminAgenda     schedule={activeSchedule} students={visibles} onSave={guardarAgenda}/>}
-      {view==="ingresos"   && <AdminIngresos   income={INCOME_DATA}/>}
+      {view==="ingresos"   && <AdminIngresos   income={incomeAuto}/>}
       {view==="planes"     && <AdminPlanes     planes={planes} onSave={onSavePlanes}/>}
       {view==="consejos"   && <AdminConsejos   consejos={consejos} onSave={onSaveConsejos}/>}
-      {view==="datos"      && <AdminDatos      students={visibles} schedule={activeSchedule} planes={planes} consejos={consejos} income={INCOME_DATA}/>}
+      {view==="datos"      && <AdminDatos      students={visibles} schedule={activeSchedule} planes={planes} consejos={consejos} income={incomeAuto}/>}
     </>
   )
 
