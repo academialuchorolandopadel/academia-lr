@@ -118,6 +118,8 @@ async function syncToFirestore(oldS, newS) {
 export function useAcademia(ready = false) {
   const [students, setStudents] = useState([])
   const [schedules, setSchedules] = useState({})
+  const schedulesRef = useRef({})
+  useEffect(() => { schedulesRef.current = schedules }, [schedules])
   const [planes, setPlanes]     = useState(PLANES)
   const [consejos, setConsejos] = useState([])
   const [temas, setTemas]       = useState(() => normalizeTemas(TEMAS_DEFAULT))
@@ -175,6 +177,23 @@ export function useAcademia(ready = false) {
     updated.estado = computeEstado(updated.abonadas, updated.realizadas)
     commitLocal(id, updated)
     syncToFirestore(old, updated).catch(err => console.error('Firestore write error:', err))
+    // Si cambió el nombre, actualizarlo también en la agenda del profe dueño
+    if (old.nombre !== updated.nombre) {
+      const duenoUid = updated.dueno || old.dueno || HEAD_UID
+      const sch = schedulesRef.current[duenoUid]
+      if (sch && sch.asign) {
+        let changed = false
+        const asign = {}
+        Object.entries(sch.asign).forEach(([k, arr]) => {
+          asign[k] = (arr || []).map(n => { if (n === old.nombre) { changed = true; return updated.nombre } return n })
+        })
+        if (changed) {
+          const nextSch = { ...sch, asign }
+          setSchedules(prev => ({ ...prev, [duenoUid]: nextSch }))
+          setDoc(horariosRef(duenoUid), nextSch).catch(err => console.error('Schedule rename sync error:', err))
+        }
+      }
+    }
   }, [])
 
   // Registrar un pago = un paquete nuevo { monto, clases, fecha }
