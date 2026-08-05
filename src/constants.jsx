@@ -143,6 +143,26 @@ export const INCOME_DATA = [
   { mes:"Jun", total:7860000,  profe:5502000,  cancha:2358000 },
 ]
 
+// Ingresos mensuales por profe: seed histórico (Ene–Jun, solo head) + automático desde pagos
+const MESES_CORTO = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+export const ingresosMensuales = (students = [], year, conSeed = false) => {
+  const auto = {}
+  students.forEach(s => (s.pagosDetalle || []).forEach(p => {
+    if (p.fecha && Number(String(p.fecha).slice(0,4)) === year) {
+      const mi = Number(String(p.fecha).slice(5,7)) - 1
+      auto[mi] = (auto[mi] || 0) + (p.monto || 0)
+    }
+  }))
+  const seed = {}
+  if (conSeed) INCOME_DATA.forEach((m, i) => { seed[i] = m })
+  const out = []
+  for (let i = 0; i < 12; i++) {
+    if (seed[i]) out.push({ mes: MESES_CORTO[i], total: seed[i].total, profe: seed[i].profe, cancha: seed[i].cancha })
+    else if (auto[i] > 0) out.push({ mes: MESES_CORTO[i], total: auto[i], profe: auto[i], cancha: 0 })
+  }
+  return out
+}
+
 export const PLANES = [
   { code:"U", nombre:"Clase Única", clases:1,  individual:100000, pareja:150000 },
   { code:"C", nombre:"4 Clases",   clases:4,  individual:380000, pareja:600000 },
