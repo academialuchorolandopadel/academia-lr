@@ -403,6 +403,7 @@ function AdminAgenda({ schedule, students, onSave }) {
   }
 
   const copiarDisponibles = () => {
+    const LBL = { individual: "Individual", pareja: "Dual", grupal: "Grupal" }
     const lineas = []
     DIAS_LABEL.forEach(dia => {
       const libresDia = []
@@ -410,7 +411,7 @@ function AdminAgenda({ schedule, students, onSave }) {
         const k = keyOf(dia, h)
         if (!tipos[k]) return
         const libres = capDe(k) - (asign[k] || []).length
-        if (libres > 0) libresDia.push(`${h} (${libres} libre${libres===1?"":"s"})`)
+        if (libres > 0) libresDia.push(`${h} · ${LBL[tipos[k]] || tipos[k]} (${libres} libre${libres===1?"":"s"})`)
       })
       if (libresDia.length) lineas.push(`*${dia}*: ${libresDia.join(", ")}`)
     })
