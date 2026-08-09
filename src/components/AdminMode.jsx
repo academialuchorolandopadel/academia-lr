@@ -363,6 +363,7 @@ function AdminAgenda({ schedule, students, onSave }) {
   const [sel, setSel]           = useState(null)   // {dia, hora} celda en edición
   const [nuevaHora, setNuevaHora] = useState("")
   const [qPicker, setQPicker]   = useState("")
+  const [copiado, setCopiado]   = useState(false)
 
   const horas = [...(schedule.horas || [])].sort((a,b) => toMin(a) - toMin(b))
   const asign = schedule.asign || {}
@@ -401,11 +402,40 @@ function AdminAgenda({ schedule, students, onSave }) {
     onSave({ ...schedule, horas: horas.filter(x => x !== h), asign: nextAsign, tipos: nextTipos })
   }
 
+  const copiarDisponibles = () => {
+    const lineas = []
+    DIAS_LABEL.forEach(dia => {
+      const libresDia = []
+      horas.forEach(h => {
+        const k = keyOf(dia, h)
+        if (!tipos[k]) return
+        const libres = capDe(k) - (asign[k] || []).length
+        if (libres > 0) libresDia.push(`${h} (${libres} libre${libres===1?"":"s"})`)
+      })
+      if (libresDia.length) lineas.push(`*${dia}*: ${libresDia.join(", ")}`)
+    })
+    const texto = lineas.length
+      ? `🎾 *Horarios disponibles* 🎾\n\n${lineas.join("\n")}`
+      : "Por ahora no hay horarios disponibles."
+    try {
+      navigator.clipboard.writeText(texto)
+      setCopiado(true); setTimeout(() => setCopiado(false), 2000)
+    } catch (e) {
+      window.prompt("Copiá el texto:", texto)
+    }
+  }
+
   return (
     <div style={{padding:24}}>
-      <div style={{marginBottom:16}}>
-        <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Agenda semanal</h1>
-        <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Tocá una celda para elegir el tipo y asignar alumnos</p>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+        <div>
+          <h1 style={{fontSize:22,fontWeight:700,color:B.text,margin:0}}>Agenda semanal</h1>
+          <p style={{color:B.textSub,fontSize:13,margin:"4px 0 0"}}>Tocá una celda para elegir el tipo y asignar alumnos</p>
+        </div>
+        <button onClick={copiarDisponibles}
+          style={{padding:"9px 14px",borderRadius:9,border:`1px solid ${B.goldBorder}`,background:copiado?B.gold:"transparent",color:copiado?B.bgDark:B.gold,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>
+          {copiado ? "✓ Copiado" : "📋 Copiar horarios disponibles"}
+        </button>
       </div>
 
       {/* Agregar horario */}
