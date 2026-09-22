@@ -1,11 +1,18 @@
 // src/constants.jsx
 // Colores, datos estáticos, helpers y LogoLR compartidos entre componentes
 
-// ─── Paleta ───────────────────────────────────────────────────────────────────
+// ─── Paleta (panel del profe) ─────────────────────────────────────────────────
+// Usa la identidad de marca: navy de fondo, crema para acentos y texto chico
+// ("gold" ahora es crema por contraste), bronce en fondos/bordes de lo destacado.
+// Paleta anterior, por si hay que volver atrás:
+//   bg:"#0f1a2e" bgDark:"#0a1428" bgCard:"#132038" border:"#1e3a5f"
+//   gold:"#c9a44a" goldLight:"#e0b86a" goldBg:"rgba(201,164,74,0.10)" goldBorder:"rgba(201,164,74,0.30)"
+//   textSub:"#8a9bb5" textMuted:"#3d5a7a"
 export const B = {
-  bg:"#0f1a2e", bgDark:"#0a1428", bgCard:"#132038", border:"#1e3a5f",
-  gold:"#c9a44a", goldLight:"#e0b86a", goldBg:"rgba(201,164,74,0.10)", goldBorder:"rgba(201,164,74,0.30)",
-  text:"#ffffff", textSub:"#8a9bb5", textMuted:"#3d5a7a",
+  bg:"#09203E", bgDark:"#061830", bgCard:"#0E2A4F", border:"#1D3D66",
+  gold:"#E4CFAB", goldLight:"#F2E6CF", goldBg:"rgba(160,109,35,0.14)", goldBorder:"rgba(160,109,35,0.50)",
+  bronce:"#A06D23",
+  text:"#ffffff", textSub:"#B8A98F", textMuted:"#8494AD",
   danger:"#dc2626", dangerBg:"rgba(220,38,38,0.08)", dangerBorder:"rgba(220,38,38,0.30)",
   warningBg:"rgba(217,119,6,0.08)", warningBorder:"rgba(217,119,6,0.30)",
   infoBg:"rgba(59,130,246,0.08)", infoBorder:"rgba(59,130,246,0.30)",
