@@ -17,6 +17,8 @@ export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSa
   const [nuevoTema, setNuevoTema] = useState("")
   const [subTxt, setSubTxt]       = useState({})   // texto de sub por golpe
   const hoy     = hoyDDMM()
+  // Temas ordenados alfabéticamente solo para mostrar (lo guardado no cambia)
+  const temasOrden = [...temas].sort((a, b) => a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }))
   const activeS = students.filter(s => !s.archivado)  // OK y vencidos; solo se ocultan los archivados
 
   // Semana Lun–Sáb
@@ -340,7 +342,7 @@ export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSa
 
             <div style={{fontSize:11,color:B.textSub,textTransform:"uppercase",letterSpacing:1,margin:"16px 0 6px"}}>Tema trabajado</div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {temas.map(t => {
+              {temasOrden.map(t => {
                 const on = dTema===t.nombre
                 return <button key={t.id} onClick={()=>setDTema(on?"":t.nombre)}
                   style={{padding:"6px 11px",borderRadius:16,border:`1px solid ${on?B.gold:B.border}`,background:on?B.goldBg:"transparent",color:on?B.gold:B.textSub,fontSize:12,fontWeight:on?700:400,cursor:"pointer"}}>{t.nombre}</button>
@@ -416,7 +418,7 @@ export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSa
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {temas.length===0 && <div style={{fontSize:12,color:B.textMuted}}>Sin golpes todavía.</div>}
-              {temas.map(t => (
+              {temasOrden.map(t => (
                 <div key={t.id} style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px"}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <span style={{fontSize:13,color:B.text,fontWeight:600}}>{t.nombre}</span>
