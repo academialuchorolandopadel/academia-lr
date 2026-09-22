@@ -106,6 +106,7 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
   const pagos = s.pagosDetalle || []
   const habil = s.habilidades || {}
   const progHab = progresoTotal(habil, temas)
+  const [habOpen, setHabOpen] = useState(false)   // mapa de habilidades plegado por defecto
   return (
     <div>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
@@ -160,6 +161,19 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
         </div>
       )}
 
+      <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+        <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Historial de asistencias</div>
+        {s.asistencia.length===0 && <div style={{fontSize:12,color:B.textMuted}}>Sin registros aún.</div>}
+        <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:180,overflowY:"auto"}}>
+          {[...s.asistencia].reverse().map(({f,m},i)=>{const st=AT[m];return(
+            <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",borderRadius:7,background:st?`${st.bg}88`:B.bgCard,border:`1px solid ${st?st.border+"55":B.border}`}}>
+              <span style={{fontSize:12,color:B.text}}>{diaCorto(f)} {f}</span>
+              <span style={{fontSize:11,color:st?st.text:B.textMuted,fontWeight:600}}>{st?st.label:"—"}</span>
+            </div>
+          )})}
+        </div>
+      </div>
+      {/* Mapa de habilidades: al final, plegado (se abre al tocar) */}
       {temas.length>0 && onSetHabilidad && (() => {
         const Pips = ({ skillId }) => {
           const niv = habil[skillId] || 0
@@ -176,10 +190,12 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
         }
         return (
           <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <button onClick={()=>setHabOpen(v=>!v)}
+              style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",background:"transparent",border:"none",padding:0,cursor:"pointer",marginBottom:habOpen?8:0}}>
               <span style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>Mapa de habilidades</span>
-              <span style={{fontSize:12,color:B.gold,fontWeight:700}}>{progHab.pct}%</span>
-            </div>
+              <span style={{fontSize:12,color:B.gold,fontWeight:700}}>{progHab.pct}% {habOpen?"▾":"▸"}</span>
+            </button>
+            {habOpen && (<>
             {temas.map(t => (
               <div key={t.id} style={{marginBottom:6}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"3px 0"}}>
@@ -201,22 +217,11 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
               </div>
             ))}
             <div style={{fontSize:9,color:B.textMuted,marginTop:8}}>1 Intro · 2 Dominio · 3 Perf · 4 Máster · tocá para subir o bajar</div>
+            </>)}
           </div>
         )
       })()}
 
-      <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
-        <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Historial de asistencias</div>
-        {s.asistencia.length===0 && <div style={{fontSize:12,color:B.textMuted}}>Sin registros aún.</div>}
-        <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:180,overflowY:"auto"}}>
-          {[...s.asistencia].reverse().map(({f,m},i)=>{const st=AT[m];return(
-            <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px",borderRadius:7,background:st?`${st.bg}88`:B.bgCard,border:`1px solid ${st?st.border+"55":B.border}`}}>
-              <span style={{fontSize:12,color:B.text}}>{diaCorto(f)} {f}</span>
-              <span style={{fontSize:11,color:st?st.text:B.textMuted,fontWeight:600}}>{st?st.label:"—"}</span>
-            </div>
-          )})}
-        </div>
-      </div>
       <button onClick={onEditar} style={{width:"100%",padding:"11px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:"pointer"}}>Editar</button>
       <button onClick={onArchivar} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:B.bgCard,color:B.textSub,fontSize:13,fontWeight:600,cursor:"pointer"}}>{s.archivado ? "Desarchivar (volvió)" : "Archivar (dejó de venir)"}</button>
       <button onClick={onBaja} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.dangerBorder}`,background:B.dangerBg,color:"#f87171",fontSize:13,fontWeight:600,cursor:"pointer"}}>Dar de baja</button>
