@@ -11,6 +11,17 @@ export const B = {
   infoBg:"rgba(59,130,246,0.08)", infoBorder:"rgba(59,130,246,0.30)",
 }
 
+// ─── Identidad visual Academia LR (la misma de los flyers de Instagram) ──────
+// Se usa en la vista del alumno. El panel del profe sigue con la paleta B.
+// Regla de marca: el bronce sobre navy tiene poco contraste → solo en números
+// y títulos grandes (24px o más), rellenos y líneas. El texto chico va en crema o blanco.
+export const LR = {
+  navy:"#09203E", navyDark:"#061830", card:"#0E2A4F", border:"#1D3D66",
+  bronce:"#A06D23", bronceBg:"rgba(160,109,35,0.14)", bronceBorder:"rgba(160,109,35,0.50)",
+  crema:"#E4CFAB",
+  text:"#ffffff", textSub:"#B8A98F", textMuted:"#8494AD",
+}
+
 // ─── Logo ─────────────────────────────────────────────────────────────────────
 export function LogoLR({ size = 40 }) {
   return (
