@@ -100,6 +100,21 @@ function AlumnoForm({ inicial, titulo, onGuardar, onCancelar, error, planOpts = 
   )
 }
 
+// Sección de la ficha que se pliega / despliega al tocar el título
+function Plegable({ titulo, resumen, children }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+      <button onClick={()=>setOpen(v=>!v)}
+        style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",background:"transparent",border:"none",padding:0,cursor:"pointer",marginBottom:open?8:0}}>
+        <span style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1}}>{titulo}</span>
+        <span style={{fontSize:12,color:B.gold,fontWeight:700}}>{resumen} {open?"▾":"▸"}</span>
+      </button>
+      {open && children}
+    </div>
+  )
+}
+
 function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, onCerrar }) {
   const disp = s.abonadas - s.realizadas
   const cuenta = (m) => s.asistencia.filter(a => a.m === m).length
@@ -145,8 +160,8 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
       </div>
 
       {pagos.length>0 && (
-        <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
-          <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Paquetes / Pagos</div>
+        <Plegable titulo="Paquetes / Pagos"
+          resumen={`${pagos.length} · últ. ${fmtFechaCorta(pagos.map(p=>p.fecha||"").sort().slice(-1)[0])}`}>
           {pagos.map((pg,i)=>(
             <div key={pg.id||i} style={{paddingBottom:7,marginBottom:7,borderBottom:i<pagos.length-1?`1px solid ${B.border}`:"none"}}>
               <div style={{display:"flex",justifyContent:"space-between",fontSize:13}}>
@@ -158,11 +173,10 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
               </div>
             </div>
           ))}
-        </div>
+        </Plegable>
       )}
 
-      <div style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
-        <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Historial de asistencias</div>
+      <Plegable titulo="Historial de asistencias" resumen={`${s.asistencia.length} registro${s.asistencia.length===1?"":"s"}`}>
         {s.asistencia.length===0 && <div style={{fontSize:12,color:B.textMuted}}>Sin registros aún.</div>}
         <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:180,overflowY:"auto"}}>
           {[...s.asistencia].reverse().map(({f,m},i)=>{const st=AT[m];return(
@@ -172,7 +186,7 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
             </div>
           )})}
         </div>
-      </div>
+      </Plegable>
       {/* Mapa de habilidades: al final, plegado (se abre al tocar) */}
       {temas.length>0 && onSetHabilidad && (() => {
         const Pips = ({ skillId }) => {
