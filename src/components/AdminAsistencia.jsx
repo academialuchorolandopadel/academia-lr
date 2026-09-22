@@ -1,6 +1,7 @@
 // src/components/AdminAsistencia.jsx
 import { useState, useMemo } from "react"
 import { B, AT, DIAS_LABEL, hoyDDMM, diaCorto, avatarColor } from "../constants"
+import { useBackClose } from "../hooks/useBackClose"
 
 export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSaveTemas, onSetHabilidad }) {
   const [wk, setWk]           = useState(0)
@@ -106,6 +107,12 @@ export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSa
     ? students.filter(s => s.nombre.toLowerCase().includes(searchA.trim().toLowerCase()))
     : []
   const selStudent = matches.find(s => s.id === selId) || (matches.length === 1 ? matches[0] : null)
+
+  // Botón atrás del celu: cierra el panel del lápiz, la lista de temas o la búsqueda,
+  // en vez de mandarte al Dashboard. En el panel, atrás = Cancelar (no guarda).
+  useBackClose(buscando, () => { setSearchA(""); setSelId(null) })
+  useBackClose(!!det, () => setDet(null))
+  useBackClose(temasOpen, () => setTemasOpen(false))
 
   const esSemana  = focus === "semana"
   const dispCols  = esSemana ? cols : [cols[focus]]
