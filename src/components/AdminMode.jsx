@@ -15,6 +15,7 @@ import { AdminDatos } from "./AdminDatos"
 import { AdminCancha } from "./AdminCancha"
 import { AdminAsistencia } from "./AdminAsistencia"
 import { AdminPagos } from "./AdminPagos"
+import { useBackClose } from "../hooks/useBackClose"
 
 const ADMIN_NAV = [
   { id:"dashboard",  label:"Dashboard",  emoji:"▦" },
@@ -113,6 +114,8 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
           <div style={{fontSize:17,fontWeight:700,color:B.text}}>{s.nombre}</div>
           <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:20,background:s.estado==="OK"?B.goldBg:B.dangerBg,color:s.estado==="OK"?B.gold:"#f87171",border:`1px solid ${s.estado==="OK"?B.goldBorder:B.dangerBorder}`}}>{s.estado}</span>
         </div>
+        <button onClick={onCerrar} title="Cerrar"
+          style={{width:34,height:34,flexShrink:0,borderRadius:"50%",border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:15,cursor:"pointer"}}>✕</button>
       </div>
 
       <div style={{display:"flex",gap:8,marginBottom:14}}>
@@ -246,6 +249,10 @@ function AdminAlumnos({ students, temas = [], onAdd, onUpdate, onDelete, onSetHa
 
   const cerrarTodo = () => { setSelId(null); setEditing(false); setAdding(false); setErr("") }
 
+  // Botón atrás del celu: desde "Editar" vuelve a la ficha; desde la ficha la cierra
+  useBackClose(!!(sel || adding), cerrarTodo)
+  useBackClose(!!(sel && editing), () => setEditing(false))
+
   const guardarNuevo = async (f) => {
     const r = await onAdd(f)
     if (r && r.ok) cerrarTodo(); else setErr((r && r.msg) || "Error")
@@ -312,7 +319,20 @@ function AdminAlumnos({ students, temas = [], onAdd, onUpdate, onDelete, onSetHa
                   <td style={{padding:"10px 12px"}}>
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
                       <div style={{width:28,height:28,background:avatarColor(s.nombre),borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:B.gold,border:`1px solid ${B.border}`}}>{s.iniciales}</div>
-                      <span style={{fontSize:12,color:B.text,fontWeight:500}}>{s.nombre}</span>
+                      <div style={{minWidth:0}}>
+                        <div style={{fontSize:12,color:B.text,fontWeight:500}}>{s.nombre}</div>
+                        {temas.length>0 && (() => {
+                          const pct = progresoTotal(s.habilidades || {}, temas).pct
+                          return (
+                            <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}>
+                              <div style={{width:60,height:4,borderRadius:2,background:B.border,overflow:"hidden"}}>
+                                <div style={{width:`${pct}%`,height:"100%",background:B.gold}}/>
+                              </div>
+                              <span style={{fontSize:10,color:pct>0?B.gold:B.textMuted,fontWeight:600}}>{pct}%</span>
+                            </div>
+                          )
+                        })()}
+                      </div>
                       {showDueno && <span style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:.5,padding:"2px 7px",borderRadius:12,background:"rgba(96,165,250,.12)",border:"1px solid rgba(96,165,250,.35)",color:"#93b4f5",whiteSpace:"nowrap"}}>{duenoNombre(s.dueno)}</span>}
                     </div>
                   </td>
@@ -364,6 +384,7 @@ function AdminAgenda({ schedule, students, onSave }) {
   const [nuevaHora, setNuevaHora] = useState("")
   const [qPicker, setQPicker]   = useState("")
   const [copiado, setCopiado]   = useState(false)
+  useBackClose(!!sel, () => setSel(null))
 
   const horas = [...(schedule.horas || [])].sort((a,b) => toMin(a) - toMin(b))
   const asign = schedule.asign || {}
@@ -635,6 +656,7 @@ function PlanForm({ inicial, titulo, onGuardar, onCancelar }) {
 function AdminPlanes({ planes, onSave }) {
   const lista = planes || []
   const [edit, setEdit] = useState(null)   // índice (number), "new", o null
+  useBackClose(edit !== null, () => setEdit(null))
 
   const guardar = (f) => {
     const plan = {
@@ -777,8 +799,11 @@ function AdminTopNav({ coach, active, onNav, onLogout }) {
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
 export function AdminMode({ coach, students, schedules, planes, consejos, temas, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onSaveTemas, onSetHabilidad, canchaRate, onSaveCanchaRate, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
-  const [verProfe, setVerProfe] = useState("todos")
+  // Arranca siempre viendo lo tuyo (head coach). "Todos" o Lautaro se eligen desde el selector.
+  const [verProfe, setVerProfe] = useState(HEAD_UID)
   const isMobile = useIsMobile()
+  // Botón atrás del celu: desde cualquier pestaña vuelve al Dashboard; desde el Dashboard sale
+  useBackClose(view !== "dashboard", () => setView("dashboard"))
   const planNames = (planes || []).map(p => p.nombre)
 
   const esHead = coach?.rol === "head"
