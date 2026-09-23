@@ -8,11 +8,12 @@
 //   bg:"#0f1a2e" bgDark:"#0a1428" bgCard:"#132038" border:"#1e3a5f"
 //   gold:"#c9a44a" goldLight:"#e0b86a" goldBg:"rgba(201,164,74,0.10)" goldBorder:"rgba(201,164,74,0.30)"
 //   textSub:"#8a9bb5" textMuted:"#3d5a7a"
+// Ajuste para leer con sol (antes: border:"#1D3D66" textSub:"#B8A98F" textMuted:"#8494AD")
 export const B = {
-  bg:"#09203E", bgDark:"#061830", bgCard:"#0E2A4F", border:"#1D3D66",
+  bg:"#09203E", bgDark:"#061830", bgCard:"#0E2A4F", border:"#3A6699",
   gold:"#E4CFAB", goldLight:"#F2E6CF", goldBg:"rgba(160,109,35,0.14)", goldBorder:"rgba(160,109,35,0.50)",
   bronce:"#A06D23",
-  text:"#ffffff", textSub:"#B8A98F", textMuted:"#8494AD",
+  text:"#ffffff", textSub:"#CFC2A8", textMuted:"#B0A795",
   danger:"#dc2626", dangerBg:"rgba(220,38,38,0.08)", dangerBorder:"rgba(220,38,38,0.30)",
   warningBg:"rgba(217,119,6,0.08)", warningBorder:"rgba(217,119,6,0.30)",
   infoBg:"rgba(59,130,246,0.08)", infoBorder:"rgba(59,130,246,0.30)",
@@ -23,10 +24,10 @@ export const B = {
 // Regla de marca: el bronce sobre navy tiene poco contraste → solo en números
 // y títulos grandes (24px o más), rellenos y líneas. El texto chico va en crema o blanco.
 export const LR = {
-  navy:"#09203E", navyDark:"#061830", card:"#0E2A4F", border:"#1D3D66",
+  navy:"#09203E", navyDark:"#061830", card:"#0E2A4F", border:"#3A6699",
   bronce:"#A06D23", bronceBg:"rgba(160,109,35,0.14)", bronceBorder:"rgba(160,109,35,0.50)",
   crema:"#E4CFAB",
-  text:"#ffffff", textSub:"#B8A98F", textMuted:"#8494AD",
+  text:"#ffffff", textSub:"#CFC2A8", textMuted:"#B0A795",
 }
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
