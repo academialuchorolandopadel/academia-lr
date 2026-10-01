@@ -1,6 +1,6 @@
 // src/components/StudentMode.jsx
 import { useState, useEffect } from "react"
-import { B, LR, AT, NOTE_STYLE, fmtFull, fmtFechaCorta, getNotifications, LogoLR, DIAS_LABEL, CAP_TIPO, TIPO_LABEL, NIVELES, NIVELES_CORTO, progresoTotal } from "../constants"
+import { B, LR, AT, NOTE_STYLE, fmtFull, fmtFechaCorta, getNotifications, LogoLR, DIAS_LABEL, CAP_TIPO, TIPO_LABEL, NIVELES, NIVELES_CORTO, progresoTotal, periodoEval, fmtSeg, compararEval } from "../constants"
 
 export function StudentMode({ student, onLogout, consejos = [], schedule = {}, temas = [], onLoadNotas, onAddNota, onDeleteNota }) {
   const [tab, setTab] = useState("cuenta")
@@ -29,6 +29,7 @@ export function StudentMode({ student, onLogout, consejos = [], schedule = {}, t
 
   // Notas personales (bitácora)
   const [asisSel, setAsisSel]     = useState(null)   // detalle de una clase (tema/comentario)
+  const [evalAbierta, setEvalAbierta] = useState(null) // evaluación desplegada en "Mi progreso"
   const [notas, setNotas]         = useState(null)   // null = sin cargar
   const [nuevaNota, setNuevaNota] = useState("")
   const [guardando, setGuardando] = useState(false)
@@ -315,6 +316,90 @@ export function StudentMode({ student, onLogout, consejos = [], schedule = {}, t
                 <div style={{fontSize:34,fontWeight:800,color:LR.text}}>{prog.pct}%</div>
                 <div style={{fontSize:11,color:LR.textSub,marginTop:4}}>{prog.done} de {prog.total} niveles conseguidos</div>
               </div>
+              {/* ── Mis evaluaciones ── */}
+              {(() => {
+                const evs = [...(student.evaluaciones || [])].sort((a,b) => String(a.fecha||"").localeCompare(String(b.fecha||"")))
+                if (!evs.length) return null
+                const abierta = evalAbierta || evs[evs.length-1].id
+                const sub = {fontSize:10,color:LR.textSub,textTransform:"uppercase",letterSpacing:1,margin:"14px 0 6px"}
+                const verde = "#4ade80", rojo = "#f87171"
+                return (
+                  <div style={{marginBottom:18}}>
+                    <div style={{fontSize:11,color:LR.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Mis evaluaciones</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                      {[...evs].reverse().map(ev => {
+                        const i = evs.findIndex(x => x.id === ev.id)
+                        const prev = i > 0 ? evs[i-1] : null
+                        const c = compararEval(ev, prev, temas)
+                        const open = abierta === ev.id
+                        return (
+                          <div key={ev.id} style={{background:LR.card,border:`1px solid ${open?LR.bronceBorder:LR.border}`,borderRadius:12,padding:"12px 14px"}}>
+                            <button onClick={()=>setEvalAbierta(open ? "__ninguna" : ev.id)}
+                              style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",background:"transparent",border:"none",padding:0,cursor:"pointer",textAlign:"left"}}>
+                              <div>
+                                <div style={{fontSize:14,fontWeight:700,color:LR.text}}>{periodoEval(ev.fecha)}</div>
+                                <div style={{fontSize:11,color:LR.textSub,marginTop:2}}>{ev.tipo==="inicial" ? "Evaluación inicial" : "Evaluación trimestral"} · {fmtFechaCorta(ev.fecha)}</div>
+                              </div>
+                              <div style={{fontSize:18,fontWeight:800,color:LR.crema}}>{ev.pct}% <span style={{fontSize:12}}>{open?"▾":"▸"}</span></div>
+                            </button>
+
+                            {open && (
+                              <div>
+                                {prev ? (
+                                  c.deltaPct != null && (
+                                    <div style={{marginTop:10,fontSize:13,color:LR.text}}>
+                                      Progreso general: {prev.pct}% → <b>{ev.pct}%</b>{" "}
+                                      <span style={{color:c.deltaPct>0?verde:c.deltaPct<0?rojo:LR.textSub,fontWeight:700}}>({c.deltaPct>0?"+":""}{c.deltaPct})</span>
+                                    </div>
+                                  )
+                                ) : (
+                                  <div style={{marginTop:10,fontSize:12,color:LR.textSub,lineHeight:1.5}}>Esta es tu evaluación de partida. La próxima se va a comparar con esta.</div>
+                                )}
+
+                                <div style={sub}>Desplazamientos (promedio de 3 rondas)</div>
+                                {c.tests.map(t => (
+                                  <div key={t.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderTop:`1px solid ${LR.border}`}}>
+                                    <div style={{flex:1,minWidth:0,fontSize:13,color:LR.text}}>{t.nombre}</div>
+                                    <div style={{fontSize:11,color:LR.crema,minWidth:52,textAlign:"center"}}>
+                                      {t.nivel ? NIVELES_CORTO[t.nivel-1] : "—"}{t.nivelPrev != null && t.nivel > t.nivelPrev ? " ↑" : ""}
+                                    </div>
+                                    <div style={{fontSize:13,color:LR.text,fontWeight:600,minWidth:62,textAlign:"right"}}>{fmtSeg(t.prom)}</div>
+                                    <div style={{fontSize:11,fontWeight:700,minWidth:62,textAlign:"right",color:t.delta==null?LR.textMuted:t.delta<0?verde:t.delta>0?rojo:LR.textSub}}>
+                                      {t.delta==null ? "" : t.delta<0 ? `▼ ${fmtSeg(-t.delta)}` : t.delta>0 ? `▲ ${fmtSeg(t.delta)}` : "="}
+                                    </div>
+                                  </div>
+                                ))}
+                                {prev && <div style={{fontSize:10,color:LR.textMuted,marginTop:4}}>▼ verde = más rápido que la evaluación anterior</div>}
+
+                                {prev && c.subieron.length > 0 && (
+                                  <>
+                                    <div style={sub}>Golpes que subieron de nivel</div>
+                                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                                      {c.subieron.map(x => (
+                                        <span key={x.nombre} style={{fontSize:11,color:LR.crema,background:LR.bronceBg,border:`1px solid ${LR.bronceBorder}`,borderRadius:14,padding:"4px 10px"}}>
+                                          {x.nombre}: {x.antes ? NIVELES_CORTO[x.antes-1] : "—"} → {NIVELES_CORTO[x.ahora-1]}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+
+                                {[["Fortalezas", ev.fortalezas], ["A mejorar", ev.mejorar], ["Objetivos del próximo trimestre", ev.objetivos]].filter(([,t]) => t).map(([l,t]) => (
+                                  <div key={l}>
+                                    <div style={sub}>{l}</div>
+                                    <div style={{fontSize:13,color:LR.text,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{t}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+
               <div style={{fontSize:11,color:LR.textSub,marginBottom:8}}>Cada habilidad tiene 4 niveles: Intro · Dominio · Perfeccionamiento · Máster</div>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 {temas.length===0 && <div style={{fontSize:13,color:LR.textMuted}}>Todavía no hay habilidades cargadas.</div>}
