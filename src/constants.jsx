@@ -299,7 +299,150 @@ export const promedioTiempos = (arr = []) => {
 }
 export const fmtSeg = (n) => n == null ? "—" : `${n.toFixed(2).replace(".", ",")} s`
 
-// Compara una evaluación con la anterior: desplazamientos, golpes que subieron y % general
+// ─── Grilla de categorización (Método Sistemático de Categorización F.A.P.) ──
+// 4 golpes base × 4 cuantificadores. Cada valor es una categoría de 7ª a 2ª.
+// Menor número = mejor nivel (bajar de 5,3 a 4,9 es mejorar).
+export const GOLPES_CAT = [
+  { id:"smash", nombre:"Smash (sobre cabeza)", factor:"Continuidad" },
+  { id:"volea", nombre:"Volea",                factor:"Profundidad" },
+  { id:"fondo", nombre:"Pegada de fondo",      factor:"Error" },
+  { id:"pared", nombre:"Salida de pared",      factor:"Levantadas" },
+]
+export const CUANTIFICADORES = [
+  { id:"aptitud",   nombre:"Aptitud de golpe-impacto" },
+  { id:"direccion", nombre:"Capacidad de direccionamiento" },
+  { id:"velocidad", nombre:"Cambios de velocidad" },
+  { id:"factor",    nombre:"Factor específico" },
+]
+export const CATEGORIAS = [7, 6, 5, 4, 3, 2]
+
+// Otros parámetros de la evaluación (escala 1 a 4)
+export const PARAMS_EXTRA = [
+  { id:"lectura",         nombre:"Lectura de pelota" },
+  { id:"posicionamiento", nombre:"Posicionamiento y cierre de red" },
+  { id:"decisiones",      nombre:"Toma de decisiones" },
+  { id:"actitud",         nombre:"Actitud y concentración" },
+]
+export const ESCALA_EXTRA = ["Bajo", "Regular", "Bueno", "Muy bueno"]
+
+// Descriptores del manual: qué hace un jugador de cada categoría en cada cuantificador
+export const MANUAL_CAT = {
+  smash: {
+    7: { aptitud:"Pega plano. Muy ocasionalmente con sidespin, más por defecto que por efectividad.",
+         direccion:"No dirige volitivamente a dos paredes ni a pared de fondo.",
+         velocidad:"Sin variación. No tiene criterio para seleccionar el cambio de velocidad.",
+         factor:"Continuidad: cada 4 golpes erra 3." },
+    6: { aptitud:"Pega con sidespin además de plano.",
+         direccion:"Intenta buscar dos paredes tanto plano como sidespin (sin lograrlo en alto porcentaje). Pega plano para traerla por pared de fondo (bajo porcentaje).",
+         velocidad:"Cambia velocidad solo por tipo de golpe. El sidespin es más lento que el plano. No siempre acierta la elección.",
+         factor:"Continuidad: cada 5 golpes 2 son malos. Los errores se dan al intentar cosas que puede imaginar pero no ejecutar." },
+    5: { aptitud:"Impacta plano y con sidespin de un lado. Eventualmente busca sidespin contrario (resultado incierto).",
+         direccion:"Busca las dos paredes. Dirige a los alambres e intenta sacarla de la cancha (no con buenos resultados).",
+         velocidad:"Logra variación de velocidad con limitaciones, tanto con sidespin como plano.",
+         factor:"Continuidad: cada 6 golpes 2 son malos. Error por apurar la definición." },
+    4: { aptitud:"Pega con sidespin siempre del mismo lado, y también plano.",
+         direccion:"Conscientemente busca las paredes eligiendo según conveniencia. Intenta sacar la pelota. Con sidespin busca las dos paredes.",
+         velocidad:"Cambia velocidad por tipo de golpe (sidespin más lento). Cambia el impulso para traerla (plano).",
+         factor:"Continuidad: ante inseguridad elige continuar flojo asegurando el tanto. De 6 golpes erra 1." },
+    3: { aptitud:"Impacta plano y con sidespin logrando con mucha eficiencia el resultado buscado.",
+         direccion:"Busca con facilidad las dos paredes eligiendo a voluntad cuál pegar primero. Dirige a alambres e intenta sacarla con éxito. Busca también el cuerpo del rival.",
+         velocidad:"Cambia velocidades indistintamente por golpe o por impulso, tanto plano como sidespin.",
+         factor:"Continuidad: es raro que erre un smash desde Zona II. De 7 golpes erra 1." },
+    2: { aptitud:"Pega plano y sidespin indistintamente de ambos lados con gran maestría, tanto desde Zona II como Zona III con igual resultado.",
+         direccion:"Varía dirección a discreción sin dificultad. Saca por alambres o pared de fondo aún cuando la pelota no le queda cómoda. Busca con intención el cuerpo del rival.",
+         velocidad:"Cambia de velocidad según conveniencia siendo totalmente criterioso. Al cambiar velocidad es un gran estratega.",
+         factor:"Continuidad: de 8 o 9 golpes erra 1. No arriesga pelotas porque sí, siempre construye el tanto." },
+  },
+  volea: {
+    7: { aptitud:"Bloquea en Zona I tanto de drive como de revés. Puede intentar pegar plano de revés. Voleas con escasa profundidad y alto margen de error.",
+         direccion:"No posee capacidad de direccionamiento.",
+         velocidad:"La velocidad depende de la pelota que viene, no de la voluntad del jugador.",
+         factor:"Profundidad: prácticamente no busca volitivamente la profundidad; puede salir profunda o no. Volea tanto desde Zona II como Zona I por deficiente lectura." },
+    6: { aptitud:"Bloquea tanto de drive como de revés usando la fuerza del rival.",
+         direccion:"Intenta buscar los alambres (no lo consigue en gran porcentaje). Con slice de revés suele buscar el medio. En volea alta la angula como si fuese smash.",
+         velocidad:"Intenta realizar cambios de velocidad frecuentemente pero sin resultados óptimos.",
+         factor:"Profundidad: busca conscientemente pelotas profundas pero no lo logra la mayoría de las veces." },
+    5: { aptitud:"Impacta con slice de drive y de revés cuando desea. Usa el globo de volea para atacar (sin ser eficiente en la mayoría de los casos). La volea alta la pega con mucho slice.",
+         direccion:"Busca alambres e intenta pelotas profundas de drive y de revés. En volea alta dirige al medio variando su velocidad.",
+         velocidad:"Comienza a utilizar cambios de velocidad de drive y de revés (plano y slice).",
+         factor:"Profundidad: trata de que la pelota pique en Zona III pero no lo logra en gran mayoría." },
+    4: { aptitud:"Bloquea solo cuando la pelota viene con gran velocidad y a muy corta distancia. El globo de volea lo usa de forma defensiva. La volea alta en Zona II la impacta plano y con potencia.",
+         direccion:"Angula la pelota y busca los alambres. De revés impacta con slice buscando el medio. La volea alta la angula como un smash.",
+         velocidad:"Busca deliberadamente diferentes ángulos, cambiando la velocidad de impulso de la pelota.",
+         factor:"Profundidad: busca conscientemente pelotas profundas pero no lo logra en la totalidad de las veces." },
+    3: { aptitud:"Impacta con slice de drive y revés cuando desea. Usa el globo de volea para atacar con buenos resultados. La volea alta la impacta con muy buen slice.",
+         direccion:"Pegando plano puede direccionar para que vuelva al mismo campo. Con slice dirige a ángulos y alambres. En volea alta la dirige en gran porcentaje al medio.",
+         velocidad:"Usa mucho el cambio de velocidad, jugando a voluntad la pelota corta con mucho slice. Tira corta a picar en Zona I.",
+         factor:"Profundidad: juega profundo tanto plano como slice, sobre todo slice. Un 50% pican en Zona III." },
+    2: { aptitud:"Pega plano y con slice de drive y de revés sin dificultad alguna, desde Zona I o Zona II con la misma eficacia.",
+         direccion:"Direcciona de revés y de drive hacia alambres, angulada o al cuerpo del rival.",
+         velocidad:"A voluntad, teniendo en cuenta la posición de los rivales para ganar el tanto. Ejecuta drop con muy buenos resultados.",
+         factor:"Profundidad: de 8 o 9 golpes, 1 no es profundo." },
+  },
+  fondo: {
+    7: { aptitud:"Golpea plano de drive. Levanta en globo de revés. Algunos pegan con slice de drive por deficiencia técnica.",
+         direccion:"Sin direccionamiento de drive ni de revés. Los tiros paralelos tienen alto porcentaje de error.",
+         velocidad:"Siempre fuerte, con pocos cambios de velocidad, más por defecto que por voluntad.",
+         factor:"Error: grande, 4 a 1." },
+    6: { aptitud:"Pega plano y fuerte de drive. Comienza a usar slice de drive. De revés levanta de globo por falta de dominio del golpe rasante.",
+         direccion:"Buen direccionamiento dentro de sus limitaciones. El globo casi siempre cruzado.",
+         velocidad:"Pega generalmente fuerte, no cambia la velocidad. Cuando tira rasante de revés le imprime menor velocidad por falta de habilidad.",
+         factor:"Error: sigue siendo alto, 3 a 1. Se apura en la definición y pega todas con igual potencia." },
+    5: { aptitud:"De drive y de revés impacta plano o con slice. Juega a media altura intentando cruzarla. Comienza a utilizar el paralelo.",
+         direccion:"Dirige con igual facilidad hacia cualquier dirección. Globos cruzados o paralelos según la oportunidad.",
+         velocidad:"Imprime velocidad o \"afloja\" de acuerdo a lo más conveniente.",
+         factor:"Error: se reduce considerablemente al manejar velocidades; ante devoluciones con presión reduce la fuerza. 4 a 1." },
+    4: { aptitud:"Impacta de drive y de revés plano o slice. De revés tanto rasante como en globo.",
+         direccion:"Dirige paralelos, cruzados y al medio con buen direccionamiento. Los globos generalmente cruzados.",
+         velocidad:"Cambia velocidades de drive y de revés (plano o slice).",
+         factor:"Error: 6 a 1." },
+    3: { aptitud:"Pega de drive o revés con slice o plano sin mayores dificultades.",
+         direccion:"Direcciona a laterales buscando alambres y al medio. Tira pelotas muy rasantes para que el rival deba levantar. Globo a discreción, cruzado o paralelo, intentando que sea \"llovido\".",
+         velocidad:"Cambia a voluntad de drive y de revés. Al medio fuerte y con potencia; a los laterales suave.",
+         factor:"Error: 7 a 1." },
+    2: { aptitud:"Pega plano o slice de drive y de revés con mucha habilidad.",
+         direccion:"Direcciona hacia cualquier lado con igual maestría. Globo cruzado o paralelo a voluntad, \"llovido\" o al rincón. El sobrepique es totalmente direccionado.",
+         velocidad:"Fuerte cuando es necesario de ambos lados, incluso al cuerpo del rival. Suave y muy rasante a los laterales para que el rival levante y contraatacar.",
+         factor:"Error: disminuye a 8 o 9 a 1." },
+  },
+  pared: {
+    7: { aptitud:"Habitualmente levanta en globo de drive y de revés. El contra pared de fondo lo usa de forma abusiva y con resultado incierto.",
+         direccion:"No posee direccionamiento en drive, revés ni globo.",
+         velocidad:"No posee habilidad para cambiar velocidades. Siempre impacta fuerte.",
+         factor:"Levantadas: margen de error amplio por falta de habilidad." },
+    6: { aptitud:"De drive impacta plano y de revés \"acompaña\" la pelota. El contra pared de fondo con factor de caída 5/2 le permite pegarlo con mayor confianza.",
+         direccion:"De drive busca todas las direcciones; de revés básicamente el medio. Los globos intenta cruzarlos. Contra pared sin direccionamiento.",
+         velocidad:"Comienza a variar la velocidad de revés y de drive.",
+         factor:"Levantadas: comienza a levantar pelotas a muy baja altura, por lo general en globo o contra pared." },
+    5: { aptitud:"De drive o revés sale de pared con slice. Usa con frecuencia la salida contra pared de fondo por lograr buen factor de caída (5/3).",
+         direccion:"Busca todas las direcciones con gran porcentaje de acierto. De revés cambia el ángulo. Aún no direcciona el contra pared.",
+         velocidad:"Cambia velocidad de drive y de revés, pegando plano o con slice.",
+         factor:"Levantadas: levanta pelotas de baja altura de drive y de revés. Usa el globo en este golpe." },
+    4: { aptitud:"Impacta de drive y de revés en forma rasante. Contra pared de fondo logra un factor de caída que le permite pegar con gran confianza.",
+         direccion:"De drive busca todas las direcciones. De revés acentúa la pelota al medio. Globos cruzados y paralelos.",
+         velocidad:"De drive y de revés impacta fuerte y \"aflojando\" hacia costados o al medio.",
+         factor:"Levantadas: levanta pelotas a muy baja altura, por lo general con globos o contra pared, con buenos resultados." },
+    3: { aptitud:"Impacta plano o con slice de drive y de revés.",
+         direccion:"Muy buen direccionamiento de drive y de revés: busca alambres, ángulos y el medio. Globos paralelos y cruzados.",
+         velocidad:"Cambia velocidades de drive y de revés, con manejo del slice.",
+         factor:"Levantadas: a muy baja altura de drive y de revés, saliendo con globo o pelota rasante." },
+    2: { aptitud:"Pega plano o con slice de drive y de revés sin dificultad.",
+         direccion:"Direcciona sin dificultad a ángulos, alambres y medio en forma rasante. El globo, paralelo o cruzado y \"llovido\", dificulta la devolución.",
+         velocidad:"Según las circunstancias, sin dificultad. Al medio más fuerte, a los laterales suave, incluso al cuerpo del rival.",
+         factor:"Levantadas: levanta pelotas de muy baja altura saliendo sin problemas con rasantes o globos cruzados o paralelos." },
+  },
+}
+
+// Promedio de categorías cargadas (ignora vacíos). null si no hay ninguna.
+export const promCat = (vals = []) => {
+  const v = (vals || []).map(Number).filter(x => Number.isFinite(x) && x >= 2 && x <= 7)
+  return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length * 10) / 10 : null
+}
+export const catGolpe   = (ev, golpeId) => promCat(Object.values(((ev && ev.golpes) || {})[golpeId] || {}))
+export const catGeneral = (ev) => promCat(GOLPES_CAT.map(g => catGolpe(ev, g.id)).filter(x => x != null))
+export const fmtCat     = (n) => n == null ? "—" : `${n.toFixed(1).replace(".", ",")}ª`
+
+// Compara una evaluación con la anterior: desplazamientos, golpes que subieron, % general y categoría
 export const compararEval = (ev, prev, temas = []) => {
   const tests = TESTS_DESPLAZ.map(t => {
     const d  = (ev.desplaz || {})[t.id] || {}
@@ -314,5 +457,16 @@ export const compararEval = (ev, prev, temas = []) => {
                   antes: (prev.habilidades || {})[sk.id] || 0, ahora: (ev.habilidades || {})[sk.id] || 0 }))
     .filter(x => x.ahora > x.antes) : []
   const deltaPct = prev && typeof prev.pct === "number" && typeof ev.pct === "number" ? ev.pct - prev.pct : null
-  return { tests, subieron, deltaPct }
+  const golpes = GOLPES_CAT.map(g => {
+    const cat = catGolpe(ev, g.id), catPrev = prev ? catGolpe(prev, g.id) : null
+    return { ...g, cat, catPrev, delta: cat != null && catPrev != null ? Math.round((cat - catPrev) * 10) / 10 : null }
+  })
+  const catGen = catGeneral(ev), catGenPrev = prev ? catGeneral(prev) : null
+  // El cambio general se mide solo con los golpes evaluados en LAS DOS evaluaciones
+  // (si no, sumar un golpe nuevo cambiaría el promedio sin que el jugador haya cambiado)
+  const comunes = golpes.filter(g => g.cat != null && g.catPrev != null)
+  const deltaCat = comunes.length
+    ? Math.round((promCat(comunes.map(g => g.cat)) - promCat(comunes.map(g => g.catPrev))) * 10) / 10
+    : null
+  return { tests, subieron, deltaPct, golpes, catGen, catGenPrev, deltaCat }
 }
