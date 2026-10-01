@@ -100,11 +100,11 @@ function ProfeAuth({ onSuccess, onCancel }) {
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [authChecked, setAuthChecked]           = useState(false)
-  const { students, schedules, planes, consejos, temas, canchaRate, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, saveCanchaRate, setHabilidad, saveEvaluaciones, loadNotas, addNota, deleteNota } = useAcademia(authChecked)
-  const [mode, setMode]                         = useState(null) // null | profe | admin | student
-  const [currentStudentId, setCurrentStudentId] = useState(null)
-  const [loginError, setLoginError]             = useState("")
   const [coach, setCoach]                       = useState(null)
+  // Solo el profe descarga la academia completa. El alumno entra con loginAlumno(pin).
+  const { students, schedules, planes, consejos, temas, canchaRate, loading, error, listo, alumno, loginAlumno, logoutAlumno, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, saveCanchaRate, setHabilidad, saveEvaluaciones, loadNotas, addNota, deleteNota } = useAcademia(authChecked && !!coach)
+  const [mode, setMode]                         = useState(null) // null | profe | admin | student
+  const [loginError, setLoginError]             = useState("")
 
   // Sesión: el profe entra con email + contraseña. Los alumnos usan un login
   // anónimo (solo para obtener un token y poder LEER; no pueden escribir datos).
@@ -121,31 +121,29 @@ export default function App() {
     return unsub
   }, [])
 
-  if (loading || !authChecked) return <LoadingScreen/>
+  if (!authChecked) return <LoadingScreen/>
   if (error)   return <ErrorScreen error={error}/>
+  if (mode === "admin" && !listo) return <LoadingScreen/>   // el profe espera la carga completa
 
-  const handleLogin = (pin) => {
+  // Devuelve true (entró) · false (PIN incorrecto) · "error" (sin conexión)
+  const handleLogin = async (pin) => {
     if (pin === PROFE_PIN) {
       setMode("profe")          // pasa al gate de contraseña
       return true
     }
-    const found = students.find(s => s.pin === pin)
-    if (found) {
-      setCurrentStudentId(found.id)
-      setMode("student")
-      return true
-    }
-    return false
+    const r = await loginAlumno(pin)   // busca solo ese PIN, no descarga a los demás
+    if (r === true) setMode("student")
+    return r
   }
 
   const handleLogout = async () => {
     try { await signOut(auth) } catch (_) {}
     setMode(null)
-    setCurrentStudentId(null)
+    logoutAlumno()
     setLoginError("")
   }
 
-  const currentStudent = students.find(s => s.id === currentStudentId) || null
+  const currentStudent = alumno
 
   return (
     <>
