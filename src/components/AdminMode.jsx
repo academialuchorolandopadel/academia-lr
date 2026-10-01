@@ -9,6 +9,7 @@ import {
   DIAS_LABEL, hoyDDMM, dateKey, diaCorto, CAP_TIPO, TIPO_LABEL,
   fmt, fmtFull, fmtFechaCorta, initials, avatarColor, NIVELES, NIVELES_CORTO, progresoTotal, COACHES, HEAD_UID, ingresosMensuales,
   TESTS_DESPLAZ, PROTOCOLO_TESTS, hoyISO, periodoEval, promedioTiempos, fmtSeg, compararEval, genId,
+  GOLPES_CAT, CUANTIFICADORES, CATEGORIAS, PARAMS_EXTRA, ESCALA_EXTRA, MANUAL_CAT, promCat, catGeneral, fmtCat,
 } from "../constants"
 import { AdminDashboard } from "./AdminDashboard"
 import { AdminConsejos } from "./AdminConsejos"
@@ -109,12 +110,21 @@ function EvalForm({ s, temas = [], inicial, esPrimera, onGuardar, onCancelar }) 
       const d = (inicial.desplaz || {})[t.id] || {}
       return [t.id, { nivel: d.nivel || 0, tiempos: [0,1,2].map(i => d.tiempos && d.tiempos[i] != null ? String(d.tiempos[i]).replace(".", ",") : "") }]
     })),
+    golpes: JSON.parse(JSON.stringify(inicial.golpes || {})), extras: { ...(inicial.extras || {}) },
     fortalezas: inicial.fortalezas || "", mejorar: inicial.mejorar || "", objetivos: inicial.objetivos || "",
   } : {
     fecha: hoyISO(), tipo: esPrimera ? "inicial" : "trimestral",
     desplaz: Object.fromEntries(TESTS_DESPLAZ.map(t => [t.id, { nivel: 0, tiempos: ["","",""] }])),
+    golpes: {}, extras: {},
     fortalezas: "", mejorar: "", objetivos: "",
   })
+  const [golpeAbierto, setGolpeAbierto] = useState(null)
+  // Tocar la misma categoría otra vez la deja vacía (no observado)
+  const setCat = (g, q, v) => setF(p => {
+    const cur = (p.golpes[g] || {})[q]
+    return { ...p, golpes: { ...p.golpes, [g]: { ...(p.golpes[g] || {}), [q]: cur === v ? null : v } } }
+  })
+  const setExtra = (k, v) => setF(p => ({ ...p, extras: { ...p.extras, [k]: p.extras[k] === v ? v - 1 : v } }))
   const set = (k, v) => setF(p => ({ ...p, [k]: v }))
   const setTest = (id, patch) => setF(p => ({ ...p, desplaz: { ...p.desplaz, [id]: { ...p.desplaz[id], ...patch } } }))
   const setTiempo = (id, i, v) => setF(p => {
@@ -137,6 +147,8 @@ function EvalForm({ s, temas = [], inicial, esPrimera, onGuardar, onCancelar }) 
       habilidades: inicial ? (inicial.habilidades || {}) : { ...(s.habilidades || {}) },
       pct: pctFoto,
       desplaz,
+      golpes: Object.fromEntries(GOLPES_CAT.map(g => [g.id, Object.fromEntries(CUANTIFICADORES.map(q => [q.id, (f.golpes[g.id] || {})[q.id] ?? null]))])),
+      extras: Object.fromEntries(PARAMS_EXTRA.map(p => [p.id, f.extras[p.id] || 0])),
       fortalezas: f.fortalezas.trim(), mejorar: f.mejorar.trim(), objetivos: f.objetivos.trim(),
     })
   }
@@ -168,6 +180,43 @@ function EvalForm({ s, temas = [], inicial, esPrimera, onGuardar, onCancelar }) 
         📸 {inicial ? "Mapa de habilidades guardado en esta evaluación" : "Se guarda el mapa de habilidades de hoy"}: <b style={{color:B.gold}}>{pctFoto}%</b>
       </div>
 
+      <div style={lbl}>Golpes · categorización F.A.P.</div>
+      <div style={{fontSize:11,color:B.textSub,marginBottom:8,lineHeight:1.4}}>Elegí la categoría de cada cuantificador (7ª a 2ª). Al elegir aparece la descripción del manual para comparar con lo que ves. Si no lo pudiste observar, dejalo vacío.</div>
+      {GOLPES_CAT.map(g => {
+        const vals = f.golpes[g.id] || {}
+        const prom = promCat(Object.values(vals))
+        const open = golpeAbierto === g.id
+        return (
+          <div key={g.id} style={{background:B.bg,border:`1px solid ${open?B.goldBorder:B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:8}}>
+            <button onClick={()=>setGolpeAbierto(open ? null : g.id)}
+              style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",background:"transparent",border:"none",padding:0,cursor:"pointer",textAlign:"left"}}>
+              <span style={{fontSize:13,color:B.text,fontWeight:600}}>{g.nombre}</span>
+              <span style={{fontSize:13,color:prom!=null?B.gold:B.textMuted,fontWeight:700}}>{fmtCat(prom)} {open?"▾":"▸"}</span>
+            </button>
+            {open && CUANTIFICADORES.map(q => {
+              const v = vals[q.id]
+              const desc = v ? ((MANUAL_CAT[g.id] || {})[v] || {})[q.id] : null
+              return (
+                <div key={q.id} style={{marginTop:10}}>
+                  <div style={{fontSize:11,color:B.textSub,marginBottom:5}}>{q.id === "factor" ? `Factor específico: ${g.factor}` : q.nombre}</div>
+                  <div style={{display:"flex",gap:4}}>
+                    {CATEGORIAS.map(c => {
+                      const on = v === c
+                      return <button key={c} onClick={()=>setCat(g.id, q.id, c)}
+                        style={{flex:1,height:32,borderRadius:6,cursor:"pointer",border:`1px solid ${on?B.gold:B.border}`,background:on?B.gold:"transparent",color:on?B.bgDark:B.textSub,fontSize:12,fontWeight:700}}>{c}ª</button>
+                    })}
+                  </div>
+                  {desc && <div style={{fontSize:11,color:B.textSub,marginTop:5,lineHeight:1.45,background:B.bgCard,borderRadius:6,padding:"6px 8px"}}>{desc}</div>}
+                </div>
+              )
+            })}
+          </div>
+        )
+      })}
+      <div style={{fontSize:12,color:B.text,fontWeight:600,textAlign:"right",marginBottom:4}}>
+        Categoría general: <span style={{color:B.gold}}>{fmtCat(catGeneral({ golpes: f.golpes }))}</span>
+      </div>
+
       <div style={lbl}>Desplazamientos</div>
       <div style={{fontSize:11,color:B.textSub,marginBottom:8,lineHeight:1.4}}>{PROTOCOLO_TESTS}</div>
       {TESTS_DESPLAZ.map(t => {
@@ -195,6 +244,26 @@ function EvalForm({ s, temas = [], inicial, esPrimera, onGuardar, onCancelar }) 
                   style={{width:62,padding:"8px 6px",textAlign:"center",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:7,color:B.text,fontSize:14,outline:"none"}}/>
               ))}
               <span style={{marginLeft:"auto",fontSize:12,color:prom!=null?B.gold:B.textMuted,fontWeight:700}}>Prom. {fmtSeg(prom)}</span>
+            </div>
+          </div>
+        )
+      })}
+
+      <div style={lbl}>Otros parámetros</div>
+      {PARAMS_EXTRA.map(p => {
+        const v = f.extras[p.id] || 0
+        return (
+          <div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"6px 0"}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:13,color:B.text}}>{p.nombre}</div>
+              {v > 0 && <div style={{fontSize:10,color:B.gold}}>{ESCALA_EXTRA[v-1]}</div>}
+            </div>
+            <div style={{display:"flex",gap:4}}>
+              {[1,2,3,4].map(lvl => {
+                const on = v >= lvl
+                return <button key={lvl} title={ESCALA_EXTRA[lvl-1]} onClick={()=>setExtra(p.id, lvl)}
+                  style={{width:26,height:26,borderRadius:6,cursor:"pointer",border:`1px solid ${on?B.gold:B.border}`,background:on?B.gold:"transparent",color:on?B.bgDark:B.textSub,fontSize:10,fontWeight:700}}>{lvl}</button>
+              })}
             </div>
           </div>
         )
@@ -320,6 +389,8 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
                     <div style={{fontSize:11,color:B.textSub}}>
                       {fmtFechaCorta(ev.fecha)} · {ev.pct}%
                       {c.deltaPct != null && <span style={{color:c.deltaPct>0?"#4ade80":c.deltaPct<0?"#f87171":B.textSub,fontWeight:700}}> ({c.deltaPct>0?"+":""}{c.deltaPct})</span>}
+                      {c.catGen != null && <> · Cat. {fmtCat(c.catGen)}</>}
+                      {c.deltaCat != null && <span style={{color:c.deltaCat<0?"#4ade80":c.deltaCat>0?"#f87171":B.textSub,fontWeight:700}}> ({c.deltaCat>0?"+":""}{String(c.deltaCat).replace(".",",")})</span>}
                     </div>
                   </div>
                   <button onClick={()=>onEditarEval(ev)} style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:11,cursor:"pointer"}}>Editar</button>
