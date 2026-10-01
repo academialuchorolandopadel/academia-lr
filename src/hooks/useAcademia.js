@@ -83,6 +83,7 @@ async function fetchAlumnoFull(docSnap) {
   base.estado = computeEstado(base.abonadas, base.realizadas)
   base.archivado = base.archivado || false
   base.habilidades = base.habilidades || {}
+  base.evaluaciones = base.evaluaciones || []
   base.dueno = base.dueno || HEAD_UID
   return base
 }
@@ -355,6 +356,17 @@ export function useAcademia(ready = false) {
     })()
   }, [])
 
+  // Evaluaciones trimestrales: se guardan como lista dentro del doc del alumno
+  // (vienen junto con el alumno al cargar → no suman lecturas extra)
+  const saveEvaluaciones = useCallback((id, lista) => {
+    const old = studentsRef.current.find(s => s.id === id)
+    if (!old) return
+    const evaluaciones = [...(lista || [])].sort((a, b) => String(a.fecha || '').localeCompare(String(b.fecha || '')))
+    commitLocal(id, { ...old, evaluaciones })
+    updateDoc(doc(db, 'alumnos', id), { evaluaciones })
+      .catch(err => { console.error('Evaluaciones write error:', err); alert('No se pudo guardar la evaluación. Revisá la conexión y probá de nuevo.') })
+  }, [])
+
   const savePlanes = useCallback((lista) => {
     setPlanes(lista)
     setDoc(doc(db, 'config', 'planes'), { lista }).catch(err => console.error('Planes write error:', err))
@@ -365,5 +377,5 @@ export function useAcademia(ready = false) {
     setDoc(horariosRef(uid), next).catch(err => console.error('Schedule write error:', err))
   }, [])
 
-  return { students, schedules, planes, consejos, temas, canchaRate, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, saveCanchaRate, setHabilidad, loadNotas, addNota, deleteNota }
+  return { students, schedules, planes, consejos, temas, canchaRate, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, saveCanchaRate, setHabilidad, saveEvaluaciones, loadNotas, addNota, deleteNota }
 }
