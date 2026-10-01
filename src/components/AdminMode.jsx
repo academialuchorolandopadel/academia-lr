@@ -8,6 +8,7 @@ import {
   B, AT, LogoLR, INCOME_DATA, MESES, StatCard,
   DIAS_LABEL, hoyDDMM, dateKey, diaCorto, CAP_TIPO, TIPO_LABEL,
   fmt, fmtFull, fmtFechaCorta, initials, avatarColor, NIVELES, NIVELES_CORTO, progresoTotal, COACHES, HEAD_UID, ingresosMensuales,
+  TESTS_DESPLAZ, PROTOCOLO_TESTS, hoyISO, periodoEval, promedioTiempos, fmtSeg, compararEval, genId,
 } from "../constants"
 import { AdminDashboard } from "./AdminDashboard"
 import { AdminConsejos } from "./AdminConsejos"
@@ -100,6 +101,118 @@ function AlumnoForm({ inicial, titulo, onGuardar, onCancelar, error, planOpts = 
   )
 }
 
+// ─── Evaluación trimestral (formulario) ───────────────────────────────────────
+function EvalForm({ s, temas = [], inicial, esPrimera, onGuardar, onCancelar }) {
+  const [f, setF] = useState(() => inicial ? {
+    fecha: inicial.fecha, tipo: inicial.tipo || "trimestral",
+    desplaz: Object.fromEntries(TESTS_DESPLAZ.map(t => {
+      const d = (inicial.desplaz || {})[t.id] || {}
+      return [t.id, { nivel: d.nivel || 0, tiempos: [0,1,2].map(i => d.tiempos && d.tiempos[i] != null ? String(d.tiempos[i]).replace(".", ",") : "") }]
+    })),
+    fortalezas: inicial.fortalezas || "", mejorar: inicial.mejorar || "", objetivos: inicial.objetivos || "",
+  } : {
+    fecha: hoyISO(), tipo: esPrimera ? "inicial" : "trimestral",
+    desplaz: Object.fromEntries(TESTS_DESPLAZ.map(t => [t.id, { nivel: 0, tiempos: ["","",""] }])),
+    fortalezas: "", mejorar: "", objetivos: "",
+  })
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }))
+  const setTest = (id, patch) => setF(p => ({ ...p, desplaz: { ...p.desplaz, [id]: { ...p.desplaz[id], ...patch } } }))
+  const setTiempo = (id, i, v) => setF(p => {
+    const tiempos = [...p.desplaz[id].tiempos]; tiempos[i] = v
+    return { ...p, desplaz: { ...p.desplaz, [id]: { ...p.desplaz[id], tiempos } } }
+  })
+  const num = (v) => { const n = parseFloat(String(v).replace(",", ".")); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null }
+  // La foto del mapa se toma al crear; si se edita una evaluación vieja, se respeta su foto original
+  const pctFoto = inicial ? (inicial.pct ?? 0) : progresoTotal(s.habilidades || {}, temas).pct
+
+  const guardar = () => {
+    const desplaz = Object.fromEntries(TESTS_DESPLAZ.map(t => [t.id, {
+      nivel: f.desplaz[t.id].nivel || 0,
+      tiempos: f.desplaz[t.id].tiempos.map(num),
+    }]))
+    onGuardar({
+      id: inicial ? inicial.id : genId(),
+      fecha: f.fecha || hoyISO(),
+      tipo: f.tipo,
+      habilidades: inicial ? (inicial.habilidades || {}) : { ...(s.habilidades || {}) },
+      pct: pctFoto,
+      desplaz,
+      fortalezas: f.fortalezas.trim(), mejorar: f.mejorar.trim(), objetivos: f.objetivos.trim(),
+    })
+  }
+
+  const lbl = {fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,margin:"14px 0 6px"}
+  const area = {width:"100%",padding:"9px 10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}
+  return (
+    <div>
+      <div style={{fontSize:15,fontWeight:700,color:B.gold}}>{inicial ? "Editar evaluación" : "Nueva evaluación"}</div>
+      <div style={{fontSize:12,color:B.textSub,marginBottom:6}}>{s.nombre}</div>
+
+      <div style={lbl}>Fecha</div>
+      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+        <input type="date" value={f.fecha} onChange={e=>set("fecha", e.target.value)}
+          style={{padding:"8px 10px",background:B.bg,border:`1px solid ${B.border}`,borderRadius:8,color:B.text,fontSize:13,outline:"none",colorScheme:"dark"}}/>
+        <span style={{fontSize:12,color:B.gold,fontWeight:600}}>{periodoEval(f.fecha)}</span>
+      </div>
+
+      <div style={lbl}>Tipo</div>
+      <div style={{display:"flex",gap:6}}>
+        {[["inicial","Inicial"],["trimestral","Trimestral"]].map(([v,l]) => {
+          const on = f.tipo === v
+          return <button key={v} onClick={()=>set("tipo", v)}
+            style={{padding:"7px 14px",borderRadius:8,border:`1px solid ${on?B.gold:B.border}`,background:on?B.goldBg:"transparent",color:on?B.gold:B.textSub,fontSize:12,fontWeight:on?700:400,cursor:"pointer"}}>{l}</button>
+        })}
+      </div>
+
+      <div style={{marginTop:14,background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"9px 12px",fontSize:12,color:B.textSub}}>
+        📸 {inicial ? "Mapa de habilidades guardado en esta evaluación" : "Se guarda el mapa de habilidades de hoy"}: <b style={{color:B.gold}}>{pctFoto}%</b>
+      </div>
+
+      <div style={lbl}>Desplazamientos</div>
+      <div style={{fontSize:11,color:B.textSub,marginBottom:8,lineHeight:1.4}}>{PROTOCOLO_TESTS}</div>
+      {TESTS_DESPLAZ.map(t => {
+        const d = f.desplaz[t.id]
+        const prom = promedioTiempos(d.tiempos.map(num))
+        return (
+          <div key={t.id} style={{background:B.bg,border:`1px solid ${B.border}`,borderRadius:10,padding:"10px 12px",marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+              <div style={{minWidth:0}}>
+                <div style={{fontSize:13,color:B.text,fontWeight:600}}>{t.nombre}</div>
+                <div style={{fontSize:10,color:B.textSub}}>{t.recorrido}</div>
+              </div>
+              <div style={{display:"flex",gap:4}}>
+                {[1,2,3,4].map(lvl => {
+                  const on = d.nivel >= lvl
+                  return <button key={lvl} title={NIVELES_CORTO[lvl-1]} onClick={()=>setTest(t.id, { nivel: d.nivel===lvl ? lvl-1 : lvl })}
+                    style={{width:26,height:26,borderRadius:6,cursor:"pointer",border:`1px solid ${on?B.gold:B.border}`,background:on?B.gold:"transparent",color:on?B.bgDark:B.textSub,fontSize:10,fontWeight:700}}>{lvl}</button>
+                })}
+              </div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
+              {[0,1,2].map(i => (
+                <input key={i} value={d.tiempos[i]} onChange={e=>setTiempo(t.id, i, e.target.value)}
+                  inputMode="decimal" placeholder={`R${i+1}`}
+                  style={{width:62,padding:"8px 6px",textAlign:"center",background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:7,color:B.text,fontSize:14,outline:"none"}}/>
+              ))}
+              <span style={{marginLeft:"auto",fontSize:12,color:prom!=null?B.gold:B.textMuted,fontWeight:700}}>Prom. {fmtSeg(prom)}</span>
+            </div>
+          </div>
+        )
+      })}
+
+      <div style={lbl}>Fortalezas</div>
+      <textarea rows={2} value={f.fortalezas} onChange={e=>set("fortalezas", e.target.value)} placeholder="Lo que ya hace bien..." style={area}/>
+      <div style={lbl}>A mejorar</div>
+      <textarea rows={2} value={f.mejorar} onChange={e=>set("mejorar", e.target.value)} placeholder="Lo que más le cuesta hoy..." style={area}/>
+      <div style={lbl}>Objetivos para el próximo trimestre</div>
+      <textarea rows={2} value={f.objetivos} onChange={e=>set("objetivos", e.target.value)} placeholder="En qué nos vamos a enfocar..." style={area}/>
+
+      <button onClick={guardar} style={{width:"100%",marginTop:16,padding:"11px",borderRadius:9,border:"none",background:B.gold,color:B.bgDark,fontSize:14,fontWeight:700,cursor:"pointer"}}>Guardar evaluación</button>
+      <button onClick={onCancelar} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:13,cursor:"pointer"}}>Cancelar</button>
+    </div>
+  )
+}
+
 // Sección de la ficha que se pliega / despliega al tocar el título
 function Plegable({ titulo, resumen, children }) {
   const [open, setOpen] = useState(false)
@@ -115,7 +228,7 @@ function Plegable({ titulo, resumen, children }) {
   )
 }
 
-function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, onCerrar }) {
+function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, onCerrar, onNuevaEval, onEditarEval, onBorrarEval }) {
   const disp = s.abonadas - s.realizadas
   const cuenta = (m) => s.asistencia.filter(a => a.m === m).length
   const pagos = s.pagosDetalle || []
@@ -187,6 +300,37 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
           )})}
         </div>
       </Plegable>
+      {/* Evaluaciones trimestrales */}
+      {onNuevaEval && (() => {
+        const evs = [...(s.evaluaciones || [])].sort((a,b) => String(a.fecha||"").localeCompare(String(b.fecha||"")))
+        const ult = evs[evs.length-1]
+        return (
+          <Plegable titulo="Evaluaciones" resumen={evs.length ? `${evs.length} · últ. ${fmtFechaCorta(ult.fecha)}` : "ninguna"}>
+            <button onClick={onNuevaEval}
+              style={{width:"100%",padding:"9px",borderRadius:8,border:`1px solid ${B.goldBorder}`,background:B.goldBg,color:B.gold,fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:evs.length?10:0}}>
+              + Nueva evaluación
+            </button>
+            {[...evs].reverse().map(ev => {
+              const i = evs.findIndex(x => x.id === ev.id)
+              const c = compararEval(ev, i > 0 ? evs[i-1] : null, temas)
+              return (
+                <div key={ev.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderTop:`1px solid ${B.border}`}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,color:B.text,fontWeight:600}}>{periodoEval(ev.fecha)}{ev.tipo==="inicial" ? " · Inicial" : ""}</div>
+                    <div style={{fontSize:11,color:B.textSub}}>
+                      {fmtFechaCorta(ev.fecha)} · {ev.pct}%
+                      {c.deltaPct != null && <span style={{color:c.deltaPct>0?"#4ade80":c.deltaPct<0?"#f87171":B.textSub,fontWeight:700}}> ({c.deltaPct>0?"+":""}{c.deltaPct})</span>}
+                    </div>
+                  </div>
+                  <button onClick={()=>onEditarEval(ev)} style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:11,cursor:"pointer"}}>Editar</button>
+                  <button onClick={()=>onBorrarEval(ev)} style={{background:"transparent",border:"none",color:B.textMuted,cursor:"pointer",fontSize:14}}>🗑</button>
+                </div>
+              )
+            })}
+          </Plegable>
+        )
+      })()}
+
       {/* Mapa de habilidades: al final, plegado (se abre al tocar) */}
       {temas.length>0 && onSetHabilidad && (() => {
         const Pips = ({ skillId }) => {
@@ -244,13 +388,14 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
   )
 }
 
-function AdminAlumnos({ students, temas = [], onAdd, onUpdate, onDelete, onSetHabilidad, planNames = [], showDueno = false, duenoNombre = () => "" }) {
+function AdminAlumnos({ students, temas = [], onAdd, onUpdate, onDelete, onSetHabilidad, onSaveEvaluaciones, planNames = [], showDueno = false, duenoNombre = () => "" }) {
   const [search, setSearch]   = useState("")
   const [filter, setFilter]   = useState("Vigentes")
   const [selId, setSelId]     = useState(null)
   const [editing, setEditing] = useState(false)
   const [adding, setAdding]   = useState(false)
   const [err, setErr]         = useState("")
+  const [evalEdit, setEvalEdit] = useState(null)   // null | "nueva" | evaluación a editar
 
   const filtered = useMemo(() => students.filter(s => {
     if (!s.nombre.toLowerCase().includes(search.toLowerCase())) return false
@@ -266,11 +411,23 @@ function AdminAlumnos({ students, temas = [], onAdd, onUpdate, onDelete, onSetHa
 
   const sel = students.find(s => s.id === selId) || null
 
-  const cerrarTodo = () => { setSelId(null); setEditing(false); setAdding(false); setErr("") }
+  const cerrarTodo = () => { setSelId(null); setEditing(false); setAdding(false); setErr(""); setEvalEdit(null) }
 
   // Botón atrás del celu: desde "Editar" vuelve a la ficha; desde la ficha la cierra
   useBackClose(!!(sel || adding), cerrarTodo)
   useBackClose(!!(sel && editing), () => setEditing(false))
+  useBackClose(!!(sel && evalEdit), () => setEvalEdit(null))
+
+  const guardarEval = (ev) => {
+    const lista = sel.evaluaciones || []
+    const next = lista.some(x => x.id === ev.id) ? lista.map(x => x.id === ev.id ? ev : x) : [...lista, ev]
+    onSaveEvaluaciones(sel.id, next)
+    setEvalEdit(null)
+  }
+  const borrarEval = (ev) => {
+    if (window.confirm(`¿Borrar la evaluación del ${fmtFechaCorta(ev.fecha)}? No se puede deshacer.`))
+      onSaveEvaluaciones(sel.id, (sel.evaluaciones || []).filter(x => x.id !== ev.id))
+  }
 
   const guardarNuevo = async (f) => {
     const r = await onAdd(f)
@@ -385,8 +542,14 @@ function AdminAlumnos({ students, temas = [], onAdd, onUpdate, onDelete, onSetHa
                 inicial={{nombre:sel.nombre,pin:sel.pin,plan:sel.plan,abonadas:String(sel.abonadas),email:sel.email||"",tel:sel.tel||""}}
                 onGuardar={guardarEdit} onCancelar={()=>setEditing(false)}/>
             )}
-            {sel && !editing && (
-              <Ficha s={sel} temas={temas} onSetHabilidad={onSetHabilidad} onEditar={()=>setEditing(true)} onArchivar={archivar} onBaja={darDeBaja} onCerrar={cerrarTodo}/>
+            {sel && !editing && evalEdit && (
+              <EvalForm s={sel} temas={temas} inicial={evalEdit === "nueva" ? null : evalEdit}
+                esPrimera={(sel.evaluaciones || []).length === 0}
+                onGuardar={guardarEval} onCancelar={()=>setEvalEdit(null)}/>
+            )}
+            {sel && !editing && !evalEdit && (
+              <Ficha s={sel} temas={temas} onSetHabilidad={onSetHabilidad} onEditar={()=>setEditing(true)} onArchivar={archivar} onBaja={darDeBaja} onCerrar={cerrarTodo}
+                onNuevaEval={onSaveEvaluaciones ? ()=>setEvalEdit("nueva") : null} onEditarEval={(ev)=>setEvalEdit(ev)} onBorrarEval={borrarEval}/>
             )}
           </div>
         </div>
@@ -816,7 +979,7 @@ function AdminTopNav({ coach, active, onNav, onLogout }) {
 }
 
 // ─── AdminMode (componente exportado) ─────────────────────────────────────────
-export function AdminMode({ coach, students, schedules, planes, consejos, temas, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onSaveTemas, onSetHabilidad, canchaRate, onSaveCanchaRate, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
+export function AdminMode({ coach, students, schedules, planes, consejos, temas, onUpdate, onAddStudent, onDeleteStudent, onSaveSchedule, onSavePlanes, onSaveConsejos, onSaveTemas, onSetHabilidad, onSaveEvaluaciones, canchaRate, onSaveCanchaRate, onAddPayment, onUpdatePayment, onRemovePayment, onLogout }) {
   const [view, setView] = useState("dashboard")
   // Arranca siempre viendo lo tuyo (head coach). "Todos" o Lautaro se eligen desde el selector.
   const [verProfe, setVerProfe] = useState(HEAD_UID)
@@ -860,7 +1023,7 @@ export function AdminMode({ coach, students, schedules, planes, consejos, temas,
     <>
       {barraProfes}
       {view==="dashboard"  && <AdminDashboard  students={visibles} income={incomeAuto}/>}
-      {view==="alumnos"    && <AdminAlumnos    students={visibles} temas={temas} onAdd={addConDueno} onUpdate={onUpdate} onDelete={onDeleteStudent} onSetHabilidad={onSetHabilidad} planNames={planNames} showDueno={esHead && verProfe==="todos"} duenoNombre={duenoNombre}/>}
+      {view==="alumnos"    && <AdminAlumnos    students={visibles} temas={temas} onAdd={addConDueno} onUpdate={onUpdate} onDelete={onDeleteStudent} onSetHabilidad={onSetHabilidad} onSaveEvaluaciones={onSaveEvaluaciones} planNames={planNames} showDueno={esHead && verProfe==="todos"} duenoNombre={duenoNombre}/>}
       {view==="asistencia" && <AdminAsistencia students={visibles} schedule={activeSchedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas} onSetHabilidad={onSetHabilidad}/>}
       {view==="pagos"      && <AdminPagos      students={visibles} onAddPayment={onAddPayment} onUpdatePayment={onUpdatePayment} onRemovePayment={onRemovePayment}/>}
       {view==="agenda"     && <AdminAgenda     schedule={activeSchedule} students={visibles} onSave={guardarAgenda}/>}
