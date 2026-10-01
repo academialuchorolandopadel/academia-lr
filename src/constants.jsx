@@ -262,3 +262,57 @@ export const getNotifications = (s) => {
 
   return notes
 }
+
+// ─── Evaluaciones trimestrales ───────────────────────────────────────────────
+// Protocolo FIJO a propósito: si se cambia, las evaluaciones nuevas ya no se
+// pueden comparar con las anteriores. Temporada: fin de abril, julio, octubre
+// y mitad de diciembre. La primera de cada alumno es su evaluación inicial.
+export const TESTS_DESPLAZ = [
+  { id:"laterales",      nombre:"Laterales",        recorrido:"Pared lateral ↔ pared lateral" },
+  { id:"shuffles",       nombre:"Shuffles",         recorrido:"Pared lateral ↔ pared lateral" },
+  { id:"crossover",      nombre:"Cross over",       recorrido:"Pared lateral ↔ pared lateral" },
+  { id:"adelante-atras", nombre:"Adelante / atrás", recorrido:"Red ↔ pared de fondo" },
+]
+export const PROTOCOLO_TESTS = "10 m ida y vuelta · 3 rondas · se cargan los 3 tiempos en segundos · cuenta el promedio · menos tiempo es mejor"
+
+// Fecha de hoy en formato ISO "YYYY-MM-DD" (con año, para soportar varias temporadas)
+export const hoyISO = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`
+}
+
+// Nombre del período según la fecha de la evaluación
+export const periodoEval = (iso) => {
+  const y = String(iso || "").slice(0,4), m = Number(String(iso || "").slice(5,7))
+  if (!y || !m) return ""
+  if (m === 1)  return `Pretemporada ${y}`
+  if (m <= 4)   return `1er trimestre ${y}`
+  if (m <= 7)   return `2do trimestre ${y}`
+  if (m <= 10)  return `3er trimestre ${y}`
+  return `Cierre de temporada ${y}`
+}
+
+// Promedio de los tiempos cargados (ignora vacíos). null si no hay ninguno.
+export const promedioTiempos = (arr = []) => {
+  const v = (arr || []).map(Number).filter(x => Number.isFinite(x) && x > 0)
+  return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length * 100) / 100 : null
+}
+export const fmtSeg = (n) => n == null ? "—" : `${n.toFixed(2).replace(".", ",")} s`
+
+// Compara una evaluación con la anterior: desplazamientos, golpes que subieron y % general
+export const compararEval = (ev, prev, temas = []) => {
+  const tests = TESTS_DESPLAZ.map(t => {
+    const d  = (ev.desplaz || {})[t.id] || {}
+    const dp = prev ? ((prev.desplaz || {})[t.id] || {}) : {}
+    const prom = promedioTiempos(d.tiempos)
+    const promPrev = prev ? promedioTiempos(dp.tiempos) : null
+    return { ...t, nivel: d.nivel || 0, nivelPrev: prev ? (dp.nivel || 0) : null, prom, promPrev,
+      delta: prom != null && promPrev != null ? Math.round((prom - promPrev) * 100) / 100 : null }
+  })
+  const subieron = prev ? flattenSkills(temas)
+    .map(sk => ({ nombre: sk.base ? sk.nombre : `${sk.golpe} › ${sk.nombre}`,
+                  antes: (prev.habilidades || {})[sk.id] || 0, ahora: (ev.habilidades || {})[sk.id] || 0 }))
+    .filter(x => x.ahora > x.antes) : []
+  const deltaPct = prev && typeof prev.pct === "number" && typeof ev.pct === "number" ? ev.pct - prev.pct : null
+  return { tests, subieron, deltaPct }
+}
