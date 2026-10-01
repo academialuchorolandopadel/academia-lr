@@ -4,16 +4,24 @@ import { B } from "../constants"
 
 export function PinPad({ onSubmit, error, setError }) {
   const [pin, setPin] = useState("")
+  const [busy, setBusy] = useState(false)   // buscando el PIN en la base
   const KEYS = [["1","2","3"],["4","5","6"],["7","8","9"],["","0","⌫"]]
 
   const press = (val) => {
+    if (busy) return
     if (val === "⌫") { setPin(p => p.slice(0,-1)); setError(""); return }
     if (pin.length >= 4) return
     const np = pin + val
     setPin(np)
     setError("")
-    if (np.length === 4) setTimeout(() => {
-      if (!onSubmit(np)) { setError("PIN incorrecto. Intentá de nuevo."); setPin("") }
+    if (np.length === 4) setTimeout(async () => {
+      setBusy(true)
+      const r = await onSubmit(np)   // true · false (PIN incorrecto) · "error" (sin conexión)
+      setBusy(false)
+      if (r !== true) {
+        setError(r === "error" ? "No se pudo conectar. Revisá internet y probá de nuevo." : "PIN incorrecto. Intentá de nuevo.")
+        setPin("")
+      }
     }, 200)
   }
 
@@ -42,6 +50,9 @@ export function PinPad({ onSubmit, error, setError }) {
               </div>
             ))}
           </div>
+          {busy && (
+            <div style={{textAlign:"center",marginTop:12,fontSize:13,color:B.textSub}}>Verificando...</div>
+          )}
           {error && (
             <div style={{textAlign:"center",marginTop:12,fontSize:13,color:"#f87171"}}>{error}</div>
           )}
