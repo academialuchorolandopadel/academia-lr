@@ -7,7 +7,7 @@
 //   /config/horarios                ← { horas: [...], asign: { "Lunes|9:00": [nombres] } }
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, limit } from 'firebase/firestore'
 import { db } from '../firebase'
 import { SCHEDULE_SLOTS, DIAS_KEYS, DIAS_LABEL, PLANES, MESES, TEMAS_DEFAULT, normalizeTemas, HEAD_UID, COACHES } from '../constants'
 
@@ -116,7 +116,9 @@ async function syncToFirestore(oldS, newS) {
 }
 
 // ─── Hook principal ────────────────────────────────────────────────────────────
-export function useAcademia(ready = false) {
+// cargarTodo = true solo cuando entra un profe. Los alumnos NO descargan la academia:
+// entran con loginAlumno(pin), que trae únicamente sus propios datos.
+export function useAcademia(cargarTodo = false) {
   const [students, setStudents] = useState([])
   const [schedules, setSchedules] = useState({})
   const schedulesRef = useRef({})
@@ -125,8 +127,10 @@ export function useAcademia(ready = false) {
   const [consejos, setConsejos] = useState([])
   const [temas, setTemas]       = useState(() => normalizeTemas(TEMAS_DEFAULT))
   const [canchaRate, setCanchaRate] = useState(25000)
-  const [loading, setLoading]   = useState(true)
+  const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState(null)
+  const [listo, setListo]       = useState(false)   // true cuando terminó la carga completa (profe)
+  const [alumno, setAlumno]     = useState(null)    // alumno logueado con su PIN
   const studentsRef = useRef([])
   const loadedRef   = useRef(false)
 
@@ -138,6 +142,7 @@ export function useAcademia(ready = false) {
 
   useEffect(() => {
     async function load() {
+      setLoading(true)
       try {
         const snap = await getDocs(collection(db, 'alumnos'))
         const list = await Promise.all(snap.docs.map(fetchAlumnoFull))
@@ -158,6 +163,7 @@ export function useAcademia(ready = false) {
         if (temasSnap.exists() && Array.isArray(temasSnap.data().lista)) setTemas(normalizeTemas(temasSnap.data().lista))
         const cchSnap = await getDoc(doc(db, 'config', 'cancha'))
         if (cchSnap.exists() && typeof cchSnap.data().porClase === 'number') setCanchaRate(cchSnap.data().porClase)
+        setListo(true)
       } catch (err) {
         console.error('Firestore load error:', err)
         setError(err.message)
@@ -165,10 +171,35 @@ export function useAcademia(ready = false) {
         setLoading(false)
       }
     }
-    if (!ready || loadedRef.current) return
+    if (!cargarTodo || loadedRef.current) return
     loadedRef.current = true
     load()
-  }, [ready])
+  }, [cargarTodo])
+
+  // ── Login del alumno: busca SOLO el alumno con ese PIN (1 lectura) y trae lo suyo.
+  // Devuelve true (entró) · false (PIN incorrecto) · 'error' (sin conexión)
+  const loginAlumno = useCallback(async (pin) => {
+    try {
+      const snap = await getDocs(query(collection(db, 'alumnos'), where('pin', '==', pin), limit(1)))
+      if (snap.empty) return false
+      const al = await fetchAlumnoFull(snap.docs[0])
+      const duenoUid = al.dueno || HEAD_UID
+      const [schSnap, consSnap, temasSnap] = await Promise.all([
+        getDoc(horariosRef(duenoUid)),
+        getDoc(doc(db, 'config', 'consejos')),
+        getDoc(doc(db, 'config', 'temas')),
+      ])
+      setSchedules(prev => ({ ...prev, [duenoUid]: schSnap.exists() ? schSnap.data() : (duenoUid === HEAD_UID ? defaultSchedule() : emptySchedule()) }))
+      if (consSnap.exists() && Array.isArray(consSnap.data().items)) setConsejos(consSnap.data().items)
+      if (temasSnap.exists() && Array.isArray(temasSnap.data().lista)) setTemas(normalizeTemas(temasSnap.data().lista))
+      setAlumno(al)
+      return true
+    } catch (e) {
+      console.error('loginAlumno error:', e)
+      return 'error'
+    }
+  }, [])
+  const logoutAlumno = useCallback(() => setAlumno(null), [])
 
   const updateStudent = useCallback((id, updater) => {
     const old = studentsRef.current.find(s => s.id === id)
@@ -377,5 +408,5 @@ export function useAcademia(ready = false) {
     setDoc(horariosRef(uid), next).catch(err => console.error('Schedule write error:', err))
   }, [])
 
-  return { students, schedules, planes, consejos, temas, canchaRate, loading, error, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, saveCanchaRate, setHabilidad, saveEvaluaciones, loadNotas, addNota, deleteNota }
+  return { students, schedules, planes, consejos, temas, canchaRate, loading, error, listo, alumno, loginAlumno, logoutAlumno, updateStudent, addStudent, deleteStudent, addPayment, updatePayment, removePayment, saveSchedule, savePlanes, saveConsejos, saveTemas, saveCanchaRate, setHabilidad, saveEvaluaciones, loadNotas, addNota, deleteNota }
 }
