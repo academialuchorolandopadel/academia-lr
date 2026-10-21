@@ -1086,7 +1086,7 @@ export function AdminMode({ coach, students, schedules, planes, consejos, temas,
         ))}
       </select>
       {verProfe!=="todos" && <span style={{fontSize:12,color:B.textSub}}>· {visibles.length} alumno{visibles.length===1?"":"s"}</span>}
-      {(view==="agenda"||view==="asistencia") && verProfe==="todos" && <span style={{fontSize:11,color:B.textSub}}>· agenda/asistencia: mostrando la tuya</span>}
+      {(view==="agenda"||view==="asistencia"||view==="cancha") && verProfe==="todos" && <span style={{fontSize:11,color:B.textSub}}>· agenda/asistencia/cancha: mostrando la tuya</span>}
     </div>
   ) : null
 
@@ -1098,7 +1098,7 @@ export function AdminMode({ coach, students, schedules, planes, consejos, temas,
       {view==="asistencia" && <AdminAsistencia students={visibles} schedule={activeSchedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas} onSetHabilidad={onSetHabilidad}/>}
       {view==="pagos"      && <AdminPagos      students={visibles} onAddPayment={onAddPayment} onUpdatePayment={onUpdatePayment} onRemovePayment={onRemovePayment}/>}
       {view==="agenda"     && <AdminAgenda     schedule={activeSchedule} students={visibles} onSave={guardarAgenda}/>}
-      {view==="cancha"     && <AdminCancha     students={visibles} rate={canchaRate} onSaveRate={onSaveCanchaRate}/>}
+      {view==="cancha"     && <AdminCancha     students={visibles} schedule={activeSchedule} profeUid={activeAgendaUid} profeNombre={duenoNombre(activeAgendaUid)} rate={canchaRate} onSaveRate={onSaveCanchaRate}/>}
       {view==="ingresos"   && <AdminIngresos   income={incomeAuto}/>}
       {view==="planes"     && <AdminPlanes     planes={planes} onSave={onSavePlanes}/>}
       {view==="consejos"   && <AdminConsejos   consejos={consejos} onSave={onSaveConsejos}/>}
