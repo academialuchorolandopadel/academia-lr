@@ -126,7 +126,8 @@ export function useAcademia(cargarTodo = false) {
   const [planes, setPlanes]     = useState(PLANES)
   const [consejos, setConsejos] = useState([])
   const [temas, setTemas]       = useState(() => normalizeTemas(TEMAS_DEFAULT))
-  const [canchaRate, setCanchaRate] = useState(25000)
+  // Tarifas de cancha del club, por alumno (individual / dual-grupal). porClase = formato viejo.
+  const [canchaRate, setCanchaRate] = useState({ porClase: 25000, individual: 25000, grupal: 20000, club: 'Fanáticos' })
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState(null)
   const [listo, setListo]       = useState(false)   // true cuando terminó la carga completa (profe)
@@ -162,7 +163,7 @@ export function useAcademia(cargarTodo = false) {
         const temasSnap = await getDoc(doc(db, 'config', 'temas'))
         if (temasSnap.exists() && Array.isArray(temasSnap.data().lista)) setTemas(normalizeTemas(temasSnap.data().lista))
         const cchSnap = await getDoc(doc(db, 'config', 'cancha'))
-        if (cchSnap.exists() && typeof cchSnap.data().porClase === 'number') setCanchaRate(cchSnap.data().porClase)
+        if (cchSnap.exists()) setCanchaRate(prev => ({ ...prev, ...cchSnap.data() }))
         setListo(true)
       } catch (err) {
         console.error('Firestore load error:', err)
@@ -362,10 +363,12 @@ export function useAcademia(cargarTodo = false) {
     await deleteDoc(doc(db, 'alumnos', id, 'notas', notaId))
   }, [])
 
+  // Guarda las tarifas de cancha. Recibe { individual, grupal, club } (o un número: formato viejo).
+  // Se mezcla con lo guardado, así no se pisa ningún otro dato de /config/cancha.
   const saveCanchaRate = useCallback((v) => {
-    const n = Number(v) || 0
-    setCanchaRate(n)
-    setDoc(doc(db, 'config', 'cancha'), { porClase: n }).catch(err => console.error('Cancha rate write error:', err))
+    const patch = (v && typeof v === 'object') ? v : { porClase: Number(v) || 0 }
+    setCanchaRate(prev => ({ ...prev, ...patch }))
+    setDoc(doc(db, 'config', 'cancha'), patch, { merge: true }).catch(err => console.error('Cancha rate write error:', err))
   }, [])
 
   const saveTemas = useCallback((lista) => {
