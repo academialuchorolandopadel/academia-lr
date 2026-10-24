@@ -22,6 +22,16 @@ const CORTOS = ["Lun","Mar","Mié","Jue","Vie","Sáb"]
 const pad = (n) => String(n).padStart(2, "0")
 const ddmm = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`
 export const ddmmyyyy = (d) => `${ddmm(d)}/${d.getFullYear()}`
+export const isoDe = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+
+// Cancha de un turno en una fecha. Lo cargado ese día manda; si no, la cancha habitual de la agenda.
+// schedule.canchasDia = { "2026-10-21|18:00": "3" } · schedule.canchas = { "Martes|18:00": "2" }
+export function canchaDe(schedule, dia, hora) {
+  const delDia = ((schedule && schedule.canchasDia) || {})[`${dia.iso}|${hora}`]
+  if (delDia) return { valor: String(delDia), habitual: false }
+  const hab = ((schedule && schedule.canchas) || {})[`${dia.diaFull}|${hora}`]
+  return hab ? { valor: String(hab), habitual: true } : { valor: "", habitual: false }
+}
 export const toMin = (h) => { const [a, b] = String(h).split(":").map(Number); return (a || 0) * 60 + (b || 0) }
 
 // Días Lun–Sáb de una semana (offset en semanas respecto de la actual)
@@ -30,7 +40,7 @@ export function diasDeSemana(offset = 0, hoy = new Date()) {
   const lunes = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + (dow === 0 ? -6 : 1 - dow) + offset * 7)
   return DIAS.map((diaFull, i) => {
     const d = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i)
-    return { f: ddmm(d), dia: CORTOS[i], diaFull, date: d }
+    return { f: ddmm(d), dia: CORTOS[i], diaFull, date: d, iso: isoDe(d) }
   })
 }
 
@@ -40,7 +50,7 @@ export function diasDelMes(ref = new Date()) {
   const d = new Date(ref.getFullYear(), ref.getMonth(), 1)
   while (d.getMonth() === ref.getMonth()) {
     const dow = d.getDay()
-    if (dow !== 0) out.push({ f: ddmm(d), dia: CORTOS[dow - 1], diaFull: DIAS[dow - 1], date: new Date(d) })
+    if (dow !== 0) out.push({ f: ddmm(d), dia: CORTOS[dow - 1], diaFull: DIAS[dow - 1], date: new Date(d), iso: isoDe(d) })
     d.setDate(d.getDate() + 1)
   }
   return out
@@ -94,13 +104,15 @@ export function calcularCancha({ students = [], schedule = {}, dias = [], tarifa
     .sort((a, b) => (a.dia.date - b.dia.date) || (toMin(a.hora) - toMin(b.hora)))
     .map(l => {
       const n = l.alumnos.length, tarifa = tarifaDe(l.tipo, tarifas)
-      return { ...l, n, tarifa, subtotal: n * tarifa }
+      const c = canchaDe(schedule, l.dia, l.hora)
+      return { ...l, n, tarifa, subtotal: n * tarifa, cancha: c.valor, canchaHabitual: c.habitual }
     })
   const sum = (arr, k) => arr.reduce((a, x) => a + x[k], 0)
   const ind = lista.filter(l => esIndividual(l.tipo))
   const grp = lista.filter(l => !esIndividual(l.tipo))
   return {
     lineas: lista, pendientes, excluidos,
+    sinCancha: lista.filter(l => !l.cancha).length,
     horas: lista.length,
     alumnos: sum(lista, "n"),
     individual: { n: sum(ind, "n"), monto: sum(ind, "subtotal") },
@@ -209,8 +221,8 @@ export function armarPdfCancha(datos, logo = null) {
 
   // Tabla
   const col = {
-    fecha: M + 8, dia: M + 72, hora: M + 148, tipo: M + 200,
-    alumnos: M + 318, tarifa: M + 420, subtotal: A4.w - M - 8,
+    fecha: M + 8, dia: M + 58, hora: M + 126, cancha: M + 196, tipo: M + 234,
+    alumnos: M + 330, tarifa: M + 425, subtotal: A4.w - M - 8,
   }
   const encabezadoTabla = (y) => {
     rect(ops, M, y, anchoUtil, 22, NAVY)
@@ -218,6 +230,7 @@ export function armarPdfCancha(datos, logo = null) {
     txt(ops, col.fecha, y + 14.5, "FECHA", o)
     txt(ops, col.dia, y + 14.5, "DÍA", o)
     txt(ops, col.hora, y + 14.5, "HORA", o)
+    txt(ops, col.cancha, y + 14.5, "CANCHA", { ...o, align: "center" })
     txt(ops, col.tipo, y + 14.5, "TIPO", o)
     txt(ops, col.alumnos, y + 14.5, "ALUMNOS", { ...o, align: "center" })
     txt(ops, col.tarifa, y + 14.5, "TARIFA", { ...o, align: "right" })
@@ -245,6 +258,7 @@ export function armarPdfCancha(datos, logo = null) {
     txt(ops, col.fecha, b, l.dia.f, o)
     txt(ops, col.dia, b, l.dia.diaFull, o)
     txt(ops, col.hora, b, l.hora, o)
+    txt(ops, col.cancha, b, l.cancha || "—", { ...o, bold: !!l.cancha, align: "center", color: l.cancha ? NAVY : GRIS })
     txt(ops, col.tipo, b, ETIQUETA_TIPO[l.tipo] || l.tipo, o)
     txt(ops, col.alumnos, b, String(l.n), { ...o, bold: true, align: "center" })
     txt(ops, col.tarifa, b, gs(l.tarifa), { ...o, align: "right", color: GRIS })
