@@ -632,7 +632,7 @@ function AdminAlumnos({ students, temas = [], onAdd, onUpdate, onDelete, onSetHa
 // ─── Agenda (editable) ────────────────────────────────────────────────────────
 const toMin = (h) => { const [hh, mm] = String(h).split(":").map(Number); return hh*60 + (mm||0) }
 
-function AdminAgenda({ schedule, students, onSave }) {
+function AdminAgenda({ schedule, students, onSave, numCanchas = 6 }) {
   const [sel, setSel]           = useState(null)   // {dia, hora} celda en edición
   const [nuevaHora, setNuevaHora] = useState("")
   const [qPicker, setQPicker]   = useState("")
@@ -645,6 +645,14 @@ function AdminAgenda({ schedule, students, onSave }) {
   const keyOf = (dia, hora) => `${dia}|${hora}`
   const tipos = schedule.tipos || {}
   const capDe = (k) => CAP_TIPO[tipos[k]] || 0
+  // Cancha habitual de cada turno (se usa por defecto en Asistencia y en el reporte de cancha)
+  const canchas = schedule.canchas || {}
+  const setCanchaHabitual = (dia, hora, valor) => {
+    const k = keyOf(dia, hora)
+    const next = { ...canchas }
+    if (valor) next[k] = valor; else delete next[k]
+    onSave({ ...schedule, canchas: next })
+  }
   const setTipo = (dia, hora, tipo) => {
     const k = keyOf(dia, hora)
     const next = { ...tipos }
@@ -672,8 +680,9 @@ function AdminAgenda({ schedule, students, onSave }) {
     if (!window.confirm(`¿Eliminar el horario ${h} y sus asignaciones?`)) return
     const nextAsign = { ...asign }
     const nextTipos = { ...tipos }
-    DIAS_LABEL.forEach(d => { delete nextAsign[keyOf(d, h)]; delete nextTipos[keyOf(d, h)] })
-    onSave({ ...schedule, horas: horas.filter(x => x !== h), asign: nextAsign, tipos: nextTipos })
+    const nextCanchas = { ...canchas }
+    DIAS_LABEL.forEach(d => { delete nextAsign[keyOf(d, h)]; delete nextTipos[keyOf(d, h)]; delete nextCanchas[keyOf(d, h)] })
+    onSave({ ...schedule, horas: horas.filter(x => x !== h), asign: nextAsign, tipos: nextTipos, canchas: nextCanchas })
   }
 
   const copiarDisponibles = () => {
@@ -751,7 +760,7 @@ function AdminAgenda({ schedule, students, onSave }) {
                       <div style={{display:"flex",flexDirection:"column",gap:3,minHeight:30}}>
                         {tipos[keyOf(d,h)] && (
                           <div style={{fontSize:8,fontWeight:700,color:lista.length>=CAP_TIPO[tipos[keyOf(d,h)]]?"#f87171":B.gold,textTransform:"uppercase",letterSpacing:0.3}}>
-                            {TIPO_LABEL[tipos[keyOf(d,h)]]} {lista.length}/{CAP_TIPO[tipos[keyOf(d,h)]]}
+                            {TIPO_LABEL[tipos[keyOf(d,h)]]} {lista.length}/{CAP_TIPO[tipos[keyOf(d,h)]]}{canchas[keyOf(d,h)] ? ` · C${canchas[keyOf(d,h)]}` : ""}
                           </div>
                         )}
                         {lista.map(n => (
@@ -796,6 +805,16 @@ function AdminAgenda({ schedule, students, onSave }) {
               const cap = capDe(keyOf(sel.dia,sel.hora))
               return <div style={{fontSize:11,color:cnt>=cap?"#f87171":B.textSub,marginBottom:8}}>Ocupados {cnt}/{cap}{cnt>=cap?" · COMPLETO":` · ${cap-cnt} lugar(es) libre(s)`}</div>
             })()}
+            <div style={{fontSize:10,color:B.textSub,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Cancha habitual</div>
+            <div style={{display:"flex",gap:5,marginBottom:10,flexWrap:"wrap"}}>
+              {Array.from({length:numCanchas},(_,i)=>String(i+1)).map(v => {
+                const on = canchas[keyOf(sel.dia,sel.hora)] === v
+                return (
+                  <button key={v} onClick={()=>setCanchaHabitual(sel.dia,sel.hora,on?null:v)}
+                    style={{minWidth:34,padding:"6px 8px",borderRadius:7,border:`1px solid ${on?B.gold:B.border}`,background:on?B.goldBg:B.bgCard,color:on?B.gold:B.textSub,fontSize:12,fontWeight:on?700:400,cursor:"pointer"}}>{v}</button>
+                )
+              })}
+            </div>
             <div style={{fontSize:11,color:B.textSub,marginBottom:10}}>Tocá un alumno para agregar o quitar</div>
             {(asign[keyOf(sel.dia,sel.hora)]||[]).length > 0 && (
               <div style={{marginBottom:12}}>
@@ -1071,6 +1090,14 @@ export function AdminMode({ coach, students, schedules, planes, consejos, temas,
   const activeAgendaUid = duenoNuevo // = tu uid; o el profe elegido si sos head
   const activeSchedule  = (schedules && schedules[activeAgendaUid]) || { horas: [], asign: {} }
   const guardarAgenda   = (next) => onSaveSchedule(activeAgendaUid, next)
+  // Canchas del complejo (se editan en la pestaña Cancha) y cancha usada por turno y fecha
+  const numCanchas = Math.min(20, Math.max(1, Number(canchaRate && canchaRate.canchas) || 6))
+  const setCanchaDia = (iso, hora, valor) => {
+    const k = `${iso}|${hora}`
+    const next = { ...(activeSchedule.canchasDia || {}) }
+    if (valor) next[k] = String(valor); else delete next[k]
+    guardarAgenda({ ...activeSchedule, canchasDia: next })
+  }
   // Ingresos: automáticos desde los pagos de los alumnos visibles + historial fijo (solo para el head)
   const conSeed   = esHead && (verProfe === "todos" || verProfe === HEAD_UID)
   const incomeAuto = ingresosMensuales(visibles, new Date().getFullYear(), conSeed)
@@ -1095,10 +1122,10 @@ export function AdminMode({ coach, students, schedules, planes, consejos, temas,
       {barraProfes}
       {view==="dashboard"  && <AdminDashboard  students={visibles} income={incomeAuto}/>}
       {view==="alumnos"    && <AdminAlumnos    students={visibles} temas={temas} onAdd={addConDueno} onUpdate={onUpdate} onDelete={onDeleteStudent} onSetHabilidad={onSetHabilidad} onSaveEvaluaciones={onSaveEvaluaciones} planNames={planNames} showDueno={esHead && verProfe==="todos"} duenoNombre={duenoNombre}/>}
-      {view==="asistencia" && <AdminAsistencia students={visibles} schedule={activeSchedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas} onSetHabilidad={onSetHabilidad}/>}
+      {view==="asistencia" && <AdminAsistencia students={visibles} schedule={activeSchedule} temas={temas} onUpdate={onUpdate} onSaveTemas={onSaveTemas} onSetHabilidad={onSetHabilidad} numCanchas={numCanchas} onSetCanchaDia={setCanchaDia}/>}
       {view==="pagos"      && <AdminPagos      students={visibles} onAddPayment={onAddPayment} onUpdatePayment={onUpdatePayment} onRemovePayment={onRemovePayment}/>}
-      {view==="agenda"     && <AdminAgenda     schedule={activeSchedule} students={visibles} onSave={guardarAgenda}/>}
-      {view==="cancha"     && <AdminCancha     students={visibles} schedule={activeSchedule} profeUid={activeAgendaUid} profeNombre={duenoNombre(activeAgendaUid)} rate={canchaRate} onSaveRate={onSaveCanchaRate}/>}
+      {view==="agenda"     && <AdminAgenda     schedule={activeSchedule} students={visibles} onSave={guardarAgenda} numCanchas={numCanchas}/>}
+      {view==="cancha"     && <AdminCancha     students={visibles} schedule={activeSchedule} profeUid={activeAgendaUid} profeNombre={duenoNombre(activeAgendaUid)} rate={canchaRate} onSaveRate={onSaveCanchaRate} numCanchas={numCanchas} onSetCanchaDia={setCanchaDia}/>}
       {view==="ingresos"   && <AdminIngresos   income={incomeAuto}/>}
       {view==="planes"     && <AdminPlanes     planes={planes} onSave={onSavePlanes}/>}
       {view==="consejos"   && <AdminConsejos   consejos={consejos} onSave={onSaveConsejos}/>}
