@@ -14,10 +14,10 @@ const LS_RES = "lr_cancha_resoluciones"   // decisiones "a revisar" (se guardan 
 const leerRes = () => { try { return JSON.parse(localStorage.getItem(LS_RES) || "{}") || {} } catch (e) { return {} } }
 const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"]
 
-export function AdminCancha({ students = [], schedule, profeUid, profeNombre = "", rate, onSaveRate }) {
+export function AdminCancha({ students = [], schedule, profeUid, profeNombre = "", rate, onSaveRate, numCanchas = 6, onSetCanchaDia }) {
   const [wk, setWk] = useState(0)
   const [editando, setEditando] = useState(false)
-  const [form, setForm] = useState({ individual: "", grupal: "", club: "" })
+  const [form, setForm] = useState({ individual: "", grupal: "", club: "", canchas: "" })
   const [resoluciones, setResoluciones] = useState(leerRes)
   const [generando, setGenerando] = useState(false)
   const [msg, setMsg] = useState("")
@@ -53,7 +53,7 @@ export function AdminCancha({ students = [], schedule, profeUid, profeNombre = "
   })
 
   const abrirEdicion = () => {
-    setForm({ individual: String(tarifas.individual), grupal: String(tarifas.grupal), club: tarifas.club || "" })
+    setForm({ individual: String(tarifas.individual), grupal: String(tarifas.grupal), club: tarifas.club || "", canchas: String(numCanchas) })
     setEditando(true)
   }
   const guardarTarifas = () => {
@@ -61,11 +61,14 @@ export function AdminCancha({ students = [], schedule, profeUid, profeNombre = "
       individual: Number(form.individual) || 0,
       grupal: Number(form.grupal) || 0,
       club: form.club.trim() || TARIFAS_DEFAULT.club,
+      canchas: Math.min(20, Math.max(1, Number(form.canchas) || numCanchas)),
     })
     setEditando(false)
   }
 
   const exportar = async (modo) => {
+    if (res.sinCancha && !window.confirm(
+      `${res.sinCancha} turno${res.sinCancha === 1 ? "" : "s"} no ${res.sinCancha === 1 ? "tiene" : "tienen"} cancha cargada y va${res.sinCancha === 1 ? "" : "n"} a salir con "—" en el PDF. ¿Exportar igual?`)) return
     if (res.pendientes.length && !window.confirm(
       `Hay ${res.pendientes.length} asistencia${res.pendientes.length === 1 ? "" : "s"} sin horario identificado que NO van a entrar en el total. ¿Exportar igual?`)) return
     setGenerando(true); setMsg("")
@@ -124,7 +127,7 @@ export function AdminCancha({ students = [], schedule, profeUid, profeNombre = "
             </div>
             <div>
               <div style={lbl}>Club</div>
-              <div style={{ fontSize: 14, color: B.text }}>{tarifas.club}</div>
+              <div style={{ fontSize: 14, color: B.text }}>{tarifas.club} · {numCanchas} canchas</div>
             </div>
             <button onClick={abrirEdicion} disabled={!cfgNueva}
               style={{ marginLeft: "auto", padding: "6px 12px", borderRadius: 8, border: `1px solid ${B.border}`, background: "transparent", color: B.textSub, fontSize: 12, cursor: cfgNueva ? "pointer" : "default", opacity: cfgNueva ? 1 : 0.5 }}>
@@ -141,6 +144,8 @@ export function AdminCancha({ students = [], schedule, profeUid, profeNombre = "
                 <input type="number" inputMode="numeric" value={form.grupal} onChange={e => setForm(f => ({ ...f, grupal: e.target.value }))} style={inp} /></label>
               <label style={{ flex: "1 1 160px" }}><span style={lbl}>Club</span>
                 <input value={form.club} onChange={e => setForm(f => ({ ...f, club: e.target.value }))} style={inp} /></label>
+              <label style={{ flex: "1 1 100px" }}><span style={lbl}>Cantidad de canchas</span>
+                <input type="number" inputMode="numeric" min="1" max="20" value={form.canchas} onChange={e => setForm(f => ({ ...f, canchas: e.target.value }))} style={inp} /></label>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={guardarTarifas} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: B.gold, color: B.bgDark, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Guardar</button>
@@ -217,6 +222,12 @@ export function AdminCancha({ students = [], schedule, profeUid, profeNombre = "
         </div>
       )}
 
+      {res.sinCancha > 0 && (
+        <div style={{ fontSize: 12, color: "#fbbf24", marginBottom: 10 }}>
+          ⚠ {res.sinCancha} turno{res.sinCancha === 1 ? "" : "s"} sin cancha. Elegila abajo, en Asistencia, o poné la habitual en la Agenda.
+        </div>
+      )}
+
       {/* Exportar */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
         {puedeCompartirArchivos() && (
@@ -244,10 +255,20 @@ export function AdminCancha({ students = [], schedule, profeUid, profeNombre = "
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: B.text, minWidth: 46 }}>{l.hora}</span>
                 <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: B.goldBg, border: `1px solid ${B.goldBorder}`, color: B.gold }}>{ETIQUETA_TIPO[l.tipo] || l.tipo}</span>
-                <span style={{ fontSize: 12, color: B.textSub, flex: 1, textAlign: "right" }}>{l.n} × {fmtFull(l.tarifa)}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: B.gold, minWidth: 90, textAlign: "right" }}>{fmtFull(l.subtotal)}</span>
+                {onSetCanchaDia ? (
+                  <select value={l.cancha} onChange={e => onSetCanchaDia(dia.iso, l.hora, e.target.value || null)} title="Cancha"
+                    style={{ padding: "3px 4px", borderRadius: 7, fontSize: 12, fontWeight: 700, outline: "none", cursor: "pointer",
+                      background: l.cancha ? B.bg : B.warningBg, color: l.cancha ? B.text : "#fbbf24",
+                      border: `1px ${l.cancha && l.canchaHabitual ? "dashed" : "solid"} ${l.cancha ? B.border : "rgba(251,191,36,0.6)"}` }}>
+                    <option value="">{l.canchaHabitual ? "Habitual" : "Cancha?"}</option>
+                    {[...Array.from({ length: numCanchas }, (_, i) => String(i + 1)), ...(l.cancha && Number(l.cancha) > numCanchas ? [l.cancha] : [])].map(v => <option key={v} value={v}>C{v}</option>)}
+                  </select>
+                ) : l.cancha ? <span style={{ fontSize: 12, color: B.text }}>C{l.cancha}</span> : null}
+                <span style={{ flex: 1 }} />
+                <span style={{ fontSize: 14, fontWeight: 700, color: B.gold, whiteSpace: "nowrap" }}>{fmtFull(l.subtotal)}</span>
               </div>
               <div style={{ fontSize: 11, color: B.textMuted, marginTop: 5, lineHeight: 1.6 }}>
+                <span style={{ color: B.textSub }}>{l.n} × {fmtFull(l.tarifa)} · </span>
                 {l.alumnos.map((a, i) => (
                   <span key={a.id}>
                     {i > 0 && " · "}
