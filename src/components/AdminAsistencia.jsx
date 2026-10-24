@@ -2,8 +2,9 @@
 import { useState, useMemo } from "react"
 import { B, AT, DIAS_LABEL, hoyDDMM, diaCorto, avatarColor } from "../constants"
 import { useBackClose } from "../hooks/useBackClose"
+import { canchaDe, isoDe, toMin } from "../utils/reporteCancha"
 
-export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSaveTemas, onSetHabilidad }) {
+export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSaveTemas, onSetHabilidad, numCanchas = 6, onSetCanchaDia }) {
   const [wk, setWk]           = useState(0)
   const [showAll, setShowAll] = useState(false)
   const [searchA, setSearchA] = useState("")
@@ -32,7 +33,7 @@ export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSa
     return cortos.map((dia, i) => {
       const d = new Date(monday); d.setDate(monday.getDate() + i)
       const f = `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`
-      return { f, dia, diaFull: DIAS_LABEL[i] }
+      return { f, dia, diaFull: DIAS_LABEL[i], date: d, iso: isoDe(d) }
     })
   }, [wk])
 
@@ -217,6 +218,51 @@ export function AdminAsistencia({ students, schedule, temas = [], onUpdate, onSa
           Semana
         </button>
       </div>
+
+      {/* Canchas del día: una por turno (va al reporte de cancha del club) */}
+      {!esSemana && onSetCanchaDia && (() => {
+        const c = cols[focus]
+        const turnos = [...(schedule?.horas || [])]
+          .sort((a, b) => toMin(a) - toMin(b))
+          .filter(h => (schedule?.asign?.[`${c.diaFull}|${h}`] || []).length > 0)
+        if (!turnos.length) return null
+        const TIPO = { individual: "Individual", pareja: "Dual", grupal: "Grupal" }
+        return (
+          <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+            <div style={{fontSize:11,color:B.textSub,marginBottom:8}}>Cancha de cada turno ({c.f}) · la habitual sale de la agenda, tocá otra si te cambiaron</div>
+            {turnos.map(h => {
+              const cc = canchaDe(schedule, c, h)
+              const nombres = (schedule.asign[`${c.diaFull}|${h}`] || []).join(", ")
+              const tipo = schedule?.tipos?.[`${c.diaFull}|${h}`]
+              return (
+                <div key={h} style={{padding:"7px 0",borderTop:`1px solid ${B.border}`}}>
+                  <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:6}}>
+                    <span style={{fontSize:13,fontWeight:700,color:B.text}}>{h}</span>
+                    {tipo && <span style={{fontSize:10,color:B.gold}}>{TIPO[tipo] || tipo}</span>}
+                    <span style={{fontSize:11,color:B.textMuted,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nombres}</span>
+                    <span style={{fontSize:10,color:cc.valor?(cc.habitual?B.textSub:B.gold):"#fbbf24",whiteSpace:"nowrap"}}>
+                      {cc.valor ? (cc.habitual ? "habitual" : "cargada") : "sin cancha"}
+                    </span>
+                  </div>
+                  <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                    {Array.from({length:numCanchas},(_,i)=>String(i+1)).map(v => {
+                      const on = cc.valor === v
+                      return (
+                        <button key={v} onClick={()=>onSetCanchaDia(c.iso, h, on && !cc.habitual ? null : v)}
+                          title={on && !cc.habitual ? "Tocá de nuevo para volver a la habitual" : `Cancha ${v}`}
+                          style={{minWidth:32,height:30,borderRadius:7,cursor:"pointer",fontSize:12,fontWeight:on?700:500,
+                            border:`1px ${on&&cc.habitual?"dashed":"solid"} ${on?B.gold:B.border}`,
+                            background:on&&!cc.habitual?B.gold:on?B.goldBg:"transparent",
+                            color:on&&!cc.habitual?B.bgDark:on?B.gold:B.textSub}}>{v}</button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
 
       {/* Marcar todos + Ver todos */}
       <div style={{background:B.bgCard,border:`1px solid ${B.border}`,borderRadius:10,padding:"12px 16px",marginBottom:12}}>
