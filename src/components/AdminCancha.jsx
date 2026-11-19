@@ -172,7 +172,9 @@ export function AdminCancha({ students = [], schedule, profeUid, profeNombre = "
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 10, fontSize: 12, color: B.textSub }}>
           <span><b style={{ color: B.text }}>{res.horas}</b> hora{res.horas === 1 ? "" : "s"} de cancha</span>
           <span><b style={{ color: B.text }}>{res.alumnos}</b> alumno{res.alumnos === 1 ? "" : "s"} (clases)</span>
-          <span>Individual: <b style={{ color: B.text }}>{res.individual.n}</b> · Dual/grupal: <b style={{ color: B.text }}>{res.grupal.n}</b></span>
+          {(res.desglose || []).map(g => (
+            <span key={g.clave}>{g.etiqueta}: <b style={{ color: B.text }}>{g.horas} h</b></span>
+          ))}
         </div>
         {res.excluidos > 0 && (
           <div style={{ fontSize: 11, color: B.textMuted, marginTop: 8 }}>
