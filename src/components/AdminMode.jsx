@@ -18,6 +18,8 @@ import { AdminCancha } from "./AdminCancha"
 import { AdminAsistencia } from "./AdminAsistencia"
 import { AdminPagos } from "./AdminPagos"
 import { useBackClose } from "../hooks/useBackClose"
+import { generarPdfEvaluacion, nombreArchivoEval } from "../utils/reporteEvaluacion"
+import { entregarPdf, puedeCompartirArchivos } from "../utils/pdf"
 
 const ADMIN_NAV = [
   { id:"dashboard",  label:"Dashboard",  emoji:"▦" },
@@ -304,6 +306,21 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
   const habil = s.habilidades || {}
   const progHab = progresoTotal(habil, temas)
   const [habOpen, setHabOpen] = useState(false)   // mapa de habilidades plegado por defecto
+  // PDF de una evaluación para mandarle al alumno (en el celu abre "compartir": WhatsApp, etc.)
+  const [pdfId, setPdfId] = useState(null)
+  const pdfEval = async (ev, prev) => {
+    if (pdfId) return
+    setPdfId(ev.id)
+    try {
+      const profe = (COACHES[s.dueno || HEAD_UID] || {}).nombre || ""
+      const blob = await generarPdfEvaluacion({ alumno: s, ev, prev, temas, profe, generado: new Date() }, `${import.meta.env.BASE_URL}lr-mark.png`)
+      await entregarPdf(blob, nombreArchivoEval(s, ev), puedeCompartirArchivos() ? "compartir" : "descargar")
+    } catch (e) {
+      console.error("PDF evaluación:", e)
+      alert("No se pudo generar el PDF. Probá de nuevo.")
+    }
+    setPdfId(null)
+  }
   return (
     <div>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
@@ -393,6 +410,8 @@ function Ficha({ s, temas = [], onSetHabilidad, onEditar, onArchivar, onBaja, on
                       {c.deltaCat != null && <span style={{color:c.deltaCat<0?"#4ade80":c.deltaCat>0?"#f87171":B.textSub,fontWeight:700}}> ({c.deltaCat>0?"+":""}{String(c.deltaCat).replace(".",",")})</span>}
                     </div>
                   </div>
+                  <button onClick={()=>pdfEval(ev, i > 0 ? evs[i-1] : null)} disabled={!!pdfId} title="PDF para el alumno"
+                    style={{padding:"5px 9px",borderRadius:7,border:`1px solid ${B.goldBorder}`,background:B.goldBg,color:B.gold,fontSize:11,fontWeight:700,cursor:pdfId?"default":"pointer",opacity:pdfId&&pdfId!==ev.id?0.5:1}}>{pdfId===ev.id ? "…" : "PDF"}</button>
                   <button onClick={()=>onEditarEval(ev)} style={{padding:"5px 10px",borderRadius:7,border:`1px solid ${B.border}`,background:"transparent",color:B.textSub,fontSize:11,cursor:"pointer"}}>Editar</button>
                   <button onClick={()=>onBorrarEval(ev)} style={{background:"transparent",border:"none",color:B.textMuted,cursor:"pointer",fontSize:14}}>🗑</button>
                 </div>
